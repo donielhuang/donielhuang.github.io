@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Daniel's Blog</title>
+    <description>Daniel's Blogs</description>
+    <link>http://localhost:4000/</link>
+    <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
+    <pubDate>Wed, 13 Feb 2019 23:21:44 +0800</pubDate>
+    <lastBuildDate>Wed, 13 Feb 2019 23:21:44 +0800</lastBuildDate>
+    <generator>Jekyll v3.6.2</generator>
+    
+      <item>
+        <title>Spark Install</title>
+        <description>&lt;h2 id=&quot;spark-template&quot;&gt;spark template&lt;/h2&gt;
+
+&lt;p&gt;spark template&lt;/p&gt;
+</description>
+        <pubDate>Wed, 13 Feb 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/spark/2019/02/13/spark-install.html</link>
+        <guid isPermaLink="true">http://localhost:4000/spark/2019/02/13/spark-install.html</guid>
+        
+        
+        <category>spark</category>
+        
+      </item>
+    
+      <item>
+        <title>Scala</title>
+        <description>&lt;h2 id=&quot;scala-tutorial-template&quot;&gt;scala tutorial template&lt;/h2&gt;
+
+&lt;p&gt;scala template&lt;/p&gt;
+</description>
+        <pubDate>Wed, 13 Feb 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/scala/2019/02/13/scala.html</link>
+        <guid isPermaLink="true">http://localhost:4000/scala/2019/02/13/scala.html</guid>
+        
+        
+        <category>scala</category>
+        
+      </item>
+    
+      <item>
+        <title>kafka install</title>
+        <description>&lt;p&gt;Kafka Install&lt;/p&gt;
+</description>
+        <pubDate>Wed, 13 Feb 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/kafka/2019/02/13/kafka-install.html</link>
+        <guid isPermaLink="true">http://localhost:4000/kafka/2019/02/13/kafka-install.html</guid>
+        
+        
+        <category>kafka</category>
+        
+      </item>
+    
+      <item>
+        <title>hello jekyll!</title>
+        <description>&lt;h4 id=&quot;目錄架構&quot;&gt;目錄架構&lt;/h4&gt;
+&lt;p&gt;jekyll 的目錄結構如下&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://localhost:4000/static/img/jekyll_1.jpg&quot; alt=&quot;jekyll_1.jpg&quot; height=&quot;400px&quot; width=&quot;600px&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;寫文章時要先定義好標頭&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;---
+layout: post
+title:  &quot;hello jekyll!&quot;
+date:   2015-02-10 15:14:54
+categories: jekyll
+comments: true
+---
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+</description>
+        <pubDate>Tue, 10 Feb 2015 23:14:54 +0800</pubDate>
+        <link>http://localhost:4000/jekyll/2015/02/10/welcome-to-jekyll.html</link>
+        <guid isPermaLink="true">http://localhost:4000/jekyll/2015/02/10/welcome-to-jekyll.html</guid>
+        
+        
+        <category>jekyll</category>
+        
+      </item>
+    
+  </channel>
+</rss>

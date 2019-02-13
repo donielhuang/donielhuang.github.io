@@ -5,8 +5,8 @@
     <description>Daniel's Blogs</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 13 Feb 2019 23:21:44 +0800</pubDate>
-    <lastBuildDate>Wed, 13 Feb 2019 23:21:44 +0800</lastBuildDate>
+    <pubDate>Wed, 13 Feb 2019 23:52:38 +0800</pubDate>
+    <lastBuildDate>Wed, 13 Feb 2019 23:52:38 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
     
       <item>
@@ -55,20 +55,26 @@
       <item>
         <title>hello jekyll!</title>
         <description>&lt;h4 id=&quot;目錄架構&quot;&gt;目錄架構&lt;/h4&gt;
-&lt;p&gt;jekyll 的目錄結構如下&lt;/p&gt;
 
-&lt;p&gt;&lt;img src=&quot;http://localhost:4000/static/img/jekyll_1.jpg&quot; alt=&quot;jekyll_1.jpg&quot; height=&quot;400px&quot; width=&quot;600px&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;jekyll 的目錄結構如下，文章主要放在 _post 目錄裡，圖片、js、css 之類的放在 static 目錄裡．&lt;/p&gt;
 
-&lt;p&gt;寫文章時要先定義好標頭&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/static/img/jekyll_1.jpg&quot; alt=&quot;jekyll_1.jpg&quot; height=&quot;400px&quot; width=&quot;600px&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;寫文章時要先定義好標頭，layout 會對應到 _layouts 目錄，categories 用來對文章進行分類．&lt;/p&gt;
+
 &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;---
 layout: post
-title:  &quot;hello jekyll!&quot;
+title:  &quot;hello jekyll&quot;
 date:   2015-02-10 15:14:54
 categories: jekyll
 comments: true
 ---
 
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;再使用 &lt;a href=&quot;https://pages.github.com/&quot;&gt;git page&lt;/a&gt;，把 project commit 到 repositories，畫面結果如下．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/jekyll_2.jpg&quot; alt=&quot;jekyll_2.jpg&quot; height=&quot;400px&quot; width=&quot;600px&quot; /&gt;&lt;/p&gt;
 </description>
         <pubDate>Tue, 10 Feb 2015 23:14:54 +0800</pubDate>
         <link>http://localhost:4000/jekyll/2015/02/10/welcome-to-jekyll.html</link>

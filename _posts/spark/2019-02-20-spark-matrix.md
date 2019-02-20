@@ -41,7 +41,18 @@ val indexRowMatrix = new IndexedRowMatrix(allPerson.map(_._2))
 ```
 val newMatrix = indexRowMatrix.toCoordinateMatrix.transpose.toIndexedRowMatrix()
 val newCosValues = newMatrix.columnSimilarities()
+newMatrix.rows.foreach(println(_))
 ```
+印出的結果會是  
+```
+MatrixEntry(0,1,0.42426406871192845)
+MatrixEntry(0,2,0.7652514332541697)
+MatrixEntry(0,3,0.8804710999221752)
+MatrixEntry(1,3,0.5746957711326908)
+MatrixEntry(2,3,0.37020976437050546)
+
+```
+
 columnSimilarities 使用說明 :   
 1.原來的矩陣  
 [0.5 , 0.3 , 0.4 , 0]  

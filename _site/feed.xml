@@ -5,19 +5,98 @@
     <description>Daniel's Blogs</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 13 Feb 2019 23:52:38 +0800</pubDate>
-    <lastBuildDate>Wed, 13 Feb 2019 23:52:38 +0800</lastBuildDate>
+    <pubDate>Wed, 20 Feb 2019 18:29:02 +0800</pubDate>
+    <lastBuildDate>Wed, 20 Feb 2019 18:29:02 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
     
       <item>
-        <title>Spark Install</title>
-        <description>&lt;h2 id=&quot;spark-template&quot;&gt;spark template&lt;/h2&gt;
+        <title>Spark Matrix</title>
+        <description>&lt;h2 id=&quot;spark-matrix&quot;&gt;spark matrix&lt;/h2&gt;
 
-&lt;p&gt;spark template&lt;/p&gt;
+&lt;p&gt;假設有一群人的資料，有每個人的 label 跟分數．透過這些分數計算這些人的相似程度如何．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val personDatas = Seq(
+  (&quot;person1&quot;,&quot;1:0.5,2:0.3,3:0.4&quot;) ,
+  (&quot;person2&quot;,&quot;2:0.7&quot;) ,
+  (&quot;person3&quot;,&quot;1:0.9,3:0.1&quot;) ,
+  (&quot;person4&quot;,&quot;1:0.3,2:0.6,3:0.8&quot;)
+)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;將上面的資料轉成 IndexedRowMatrix．透過 RDD 的 zipWithIndex，可以取得每個元素的 index 從 0 開始．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val comparePersons = spark.sparkContext.parallelize(personDatas).toDF(&quot;id&quot;,&quot;labels&quot;).cache()
+
+val allPerson = comparePersons.rdd.zipWithIndex.map {
+  case (row , index) =&amp;gt; {
+    val id = row.getAs[String](&quot;id&quot;)
+    val labels = row.getAs[String](&quot;labels&quot;).split(&quot;,&quot;)
+    val lindexs = labels.map(lstr =&amp;gt; (lstr.split(&quot;:&quot;)(0).toInt - 1))
+    val lvalues = labels.map(lstr =&amp;gt; lstr.split(&quot;:&quot;)(1).toDouble)
+    val labelVector =  org.apache.spark.mllib.linalg.Vectors.sparse(4, lindexs, lvalues)
+    (id , new IndexedRow(index , labelVector) )
+  }
+}.cache()
+
+val indexRowMatrix = new IndexedRowMatrix(allPerson.map(_._2))
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;將 IndexedRowMatrix 轉成 CoordinateMatrix 後轉置(transpose)，然後再轉成 IndexedRowMatrix，
+利用 IndexedRowMatrix 的 columnSimilarities 來幫忙算出每個向量之間的相似度 (cosine similarity)．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val newMatrix = indexRowMatrix.toCoordinateMatrix.transpose.toIndexedRowMatrix()
+val newCosValues = newMatrix.columnSimilarities()
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;columnSimilarities 使用說明 : &lt;br /&gt;
+1.原來的矩陣&lt;br /&gt;
+[0.5 , 0.3 , 0.4 , 0]&lt;br /&gt;
+[0 , 0.7 , 0 , 0]&lt;br /&gt;
+[0.9 , 0 , 0.1 , 0]&lt;br /&gt;
+如果沒轉置使用 columnSimilarities 的話，結果會是&lt;br /&gt;
+[0.5 , 0 , 0.9] 跟 [0.3 , 0.7 , 0] 的相似度 0.19130412280981776&lt;br /&gt;
+[0.5 , 0 , 0.9] 跟 [0.4 , 0 , 0.1] 的相似度 0.6831571287757409&lt;br /&gt;
+[0.5 , 0 , 0.9] 跟 [0 , 0 , 0] 的相似度 NaN (無法計算不顯示)&lt;br /&gt;
+[0.3 , 0.7 , 0] 跟 [0.4 , 0 , 0.1] 的相似度 0.3821578531790892&lt;br /&gt;
+[0.3 , 0.7 , 0] 跟 [0 , 0 , 0] 的相似度 NaN (無法計算不顯示)&lt;br /&gt;
+[0.4 , 0 , 0.1] 跟 [0 , 0 , 0] 的相似度 NaN (無法計算不顯示)
+這樣並不是正確的結果，因為希望的是上面三個向量彼此的相似度．所以要將矩陣轉置．&lt;/p&gt;
+
+&lt;p&gt;2.轉置後的矩陣&lt;br /&gt;
+IndexedRow(0,[0.5,0.0,0.9])&lt;br /&gt;
+IndexedRow(1,[0.3,0.7,0.0])&lt;br /&gt;
+IndexedRow(2,[0.4,0.0,0.1])&lt;br /&gt;
+IndexedRow(3,[0.0,0.0,0.0])&lt;br /&gt;
+使用 columnSimilarities 的話，結果會是&lt;br /&gt;
+[0.5 , 0.3 , 0.4 , 0] 跟 [0 , 0.7 , 0 , 0] 的相似度 0.42426406871192845&lt;br /&gt;
+[0.5 , 0.3 , 0.4 , 0] 跟 [0.9 , 0 , 0.1 , 0] 的相似度 0.7652514332541697&lt;br /&gt;
+[0 , 0.7 , 0 , 0] 跟  [0.9 , 0 , 0.1 , 0] 的相似度 0 (相似度 0 的話就不顯示)&lt;br /&gt;
+可以用下列的 cosineSimilarityVerifyTest 來驗證相似度是否正確．計算兩個向量的 cosine Similarity，越大代表越像．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;test(&quot;cosineSimilarityVerifyTest&quot;) {
+	//[0.5 , 0 , 0.9] 跟 [0 , 0 , 0] 的相似度 0
+	val query = List[Double](0.5 , 0.3 , 0.4 , 0)
+	val labels = List[Double](0 , 0.7 , 0 , 0)
+	val cv1 = cosineSimilarity(query.toArray , labels.toArray)
+	println(&quot;cv1 : &quot; + cv1) // cv1 : 0.42426406871192845
+}
+
+def cosineSimilarity(x: Array[Double], y: Array[Double]): Double = {
+require(x.size == y.size)
+genDot(x, y)/(magnitude(x) * magnitude(y))
+}
+
+def genDot(x: Array[Double], y: Array[Double]): Double = {
+(for((a, b) &amp;lt;- x.zip(y)) yield a * b).sum
+}
+
+def magnitude(x: Array[Double]): Double = {
+math.sqrt(x.map(i =&amp;gt; i*i).sum)
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
 </description>
-        <pubDate>Wed, 13 Feb 2019 00:00:00 +0800</pubDate>
-        <link>http://localhost:4000/spark/2019/02/13/spark-install.html</link>
-        <guid isPermaLink="true">http://localhost:4000/spark/2019/02/13/spark-install.html</guid>
+        <pubDate>Wed, 20 Feb 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/spark/2019/02/20/spark-matrix.html</link>
+        <guid isPermaLink="true">http://localhost:4000/spark/2019/02/20/spark-matrix.html</guid>
         
         
         <category>spark</category>
@@ -53,7 +132,7 @@
       </item>
     
       <item>
-        <title>hello jekyll!</title>
+        <title>hello jekyll</title>
         <description>&lt;h4 id=&quot;目錄架構&quot;&gt;目錄架構&lt;/h4&gt;
 
 &lt;p&gt;jekyll 的目錄結構如下，文章主要放在 _post 目錄裡，圖片、js、css 之類的放在 static 目錄裡．&lt;/p&gt;

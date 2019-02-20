@@ -4,9 +4,9 @@ comments: false
 categories: spark
 ---
 
-## spark matrix
+### spark matrix 計算 cosine Similarity
 
-假設有一群人的資料，有每個人的 label 跟分數．透過這些分數計算這些人的相似程度如何．  
+假設有一群人的資料，有每個人的 label 跟分數．將每個人的 label 與分數轉成向量後計算彼此的 cosine Similarity，透過 cosine Similarity 來看這些人的相似程度如何．  
 
 ```
 val personDatas = Seq(
@@ -16,7 +16,11 @@ val personDatas = Seq(
   ("person4","1:0.3,2:0.6,3:0.8")
 )
 ```
-將上面的資料轉成 IndexedRowMatrix．透過 RDD 的 zipWithIndex，可以取得每個元素的 index 從 0 開始．  
+person1 的 label 分數轉成 [0.5,0.3,0.4] 代表一個維度為 3 的向量．  
+person2 的 label 分數轉成 [0.0,0.7,0.0]．  
+然後用 cosine Similarity 的公式來計算 [0.5,0.3,0.4] 與 [0.0,0.7,0.0] 的 cosine Similarity value．  
+
+接著將上面的資料轉成 IndexedRowMatrix．透過 RDD 的 zipWithIndex，可以取得每個元素的 index 從 0 開始 :   
 
 ```
 val comparePersons = spark.sparkContext.parallelize(personDatas).toDF("id","labels").cache()
@@ -53,7 +57,7 @@ MatrixEntry(2,3,0.37020976437050546)
 
 ```
 
-columnSimilarities 使用說明 :   
+### columnSimilarities 使用說明   
 1.原來的矩陣  
 [0.5 , 0.3 , 0.4 , 0]  
 [0 , 0.7 , 0 , 0]  
@@ -101,8 +105,84 @@ math.sqrt(x.map(i => i*i).sum)
 }
 ```
 
+### 其他參考作法
 
+```
+val spark = SparkSession.builder()
+  .master("local[*]")
+  .appName("testtest")
+  .getOrCreate()
 
+import spark.implicits._
 
+val testSeq = Seq(
+  ("1","1:0.5,2:0.3,3:0.4") ,
+  ("2","2:0.7") ,
+  ("3","1:0.9,3:0.1")
+)
+val rddEntrys = testSeq.map {
+  case(i , labels) => {
+    val entrys = labels.split(",").map(l => {
+      val index = l.split(":")(0).toInt - 1
+      val v = l.split(":")(1).toDouble
+      new MatrixEntry(index , (i.toLong - 1) , v )
+    })
+    entrys
+  }
+}.flatten
+
+val temp = spark.sparkContext.parallelize(rddEntrys)
+
+val corMatrix = new CoordinateMatrix(temp)
+corMatrix.entries.foreach(println(_))
+
+val cv = corMatrix.toIndexedRowMatrix().columnSimilarities()
+cv.entries.foreach(println(_))
+```
+印出結果  
+```
+MatrixEntry(0,1,0.42426406871192845)
+MatrixEntry(0,2,0.7652514332541697)
+```
+
+```
+val spark = SparkSession.builder()
+  .master("local[*]")
+  .appName("testtest")
+  .getOrCreate()
+
+import spark.implicits._
+
+val testSeq = Seq(
+  ("1","1:0.5,2:0.3,3:0.4") ,
+  ("2","2:0.7") ,
+  ("3","1:0.9,3:0.1")
+)
+val rddEntrys = testSeq.map {
+  case(i , labels) => {
+    val entrys = labels.split(",").map(l => {
+      val index = l.split(":")(0).toInt - 1
+      val v = l.split(":")(1).toDouble
+      (index , ((i.toLong - 1).toInt , v) )
+    })
+    entrys
+  }
+}.flatten
+
+val indexedRows = spark.sparkContext.parallelize(rddEntrys).groupByKey.map {
+  case(i, vectorEntries) => {
+    IndexedRow(i, Vectors.sparse(3, vectorEntries.toSeq))
+  }
+}
+val numRows = indexedRows.count
+
+val cv = new IndexedRowMatrix(indexedRows, numRows, 3).columnSimilarities()
+cv.entries.foreach(println(_))
+```
+印出結果  
+```
+MatrixEntry(0,1,0.42426406871192845)
+MatrixEntry(0,2,0.7652514332541697)
+```
 
 

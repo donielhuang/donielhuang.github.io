@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Spark Lsh</title>
+	<meta name="description" content="spark LSH 實作">
+	
+	<link rel="canonical" href="http://localhost:4000/spark/2019/02/21/spark-LSH.html">
+	<link rel="alternate" type="application/rss+xml" title="Daniel's Blog" href="http://localhost:4000/feed.xml" />
+	
+	<!-- <link rel="stylesheet" href="/css/main.css"> -->
+    
+    <link rel="stylesheet" type="text/css" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/index.css">
+	<script type="text/javascript" src="/static/js/jquery-1.11.1.min.js"></script>
+	<script type="text/javascript" src="/static/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/css/monokai_sublime.min.css">
+	<script type="text/javascript" src="/static/js/highlight.min.js"></script>
+
+    <!--
+    <link rel="stylesheet" type="text/css" href="http://apps.bdimg.com/libs/bootstrap/3.3.0/css/bootstrap.min.css">
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/jquery/2.1.1/jquery.min.js"></script>
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="http://apps.bdimg.com/libs/highlight.js/8.4/styles/monokai_sublime.min.css">
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/highlight.js/8.4/highlight.min.js"></script>
+    -->
+    
+	<script type="text/javascript" src="/static/js/index.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+ <!--  <body data-spy="scroll" data-target="#myAffix"> -->
+  <body>
+
+    <header>
+
+<!-- navbar -->
+  <nav class="navbar navbar-inverse">
+  <div class="container">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Daniel's Blog</a>
+      <p class="navbar-text"></p>
+    </div>
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+      <ul class="nav navbar-nav navbar-right">
+
+        
+          <li>
+        
+        <a href="/">Home</a></li>
+
+        
+          
+            
+              <li>
+            
+            <a href="/projects/"><span class="glyphicon "></span> Projects</a></li>
+          
+        
+          
+            
+              <li>
+            
+            <a href="/about/"><span class="glyphicon "></span> About</a></li>
+          
+        
+          
+        
+          
+        
+      </ul>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container-fluid -->
+</nav>
+
+</header>
+
+    <div id="main" class="container main">
+      <div class="row">
+  <div id="myArticle" class="col-sm-9">
+    <div class="post-area post">
+      <header>
+        <h1>Spark Lsh</h1>
+        <p>Feb 21, 2019</p>
+      </header>
+      <hr>
+      <article>
+        <h3 id="spark-lsh-實作">spark LSH 實作</h3>
+
+<p>建立一組 index 並 shuffle．透過 Stream.range 建立一組 1 到 10 的數字，並透過 random swap 的方式打亂．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val suffleIndex = shuffleIndex(Stream.range(1,10).toArray)
+
+def shuffleIndex(arr: Array[Int]): Array[Int] = {
+  val rand = new Random()
+  for(i &lt;- arr.size to 1 by -1) {
+    swap(arr , (i-1) , rand.nextInt(i))
+  }
+  arr
+}
+
+def swap(arr: Array[Int], i:Int ,j:Int): Array[Int] = {
+  val tmp = arr(i)
+  arr(i) = arr(j)
+  arr(j) = tmp
+  arr
+} 
+</code></pre></div></div>
+
+<p>輸出結果會是</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>println(suffleIndex.mkString(",")) // 6,2,1,7,5,8,3,9,4
+</code></pre></div></div>
+
+<p>建立 label 的查找順序查看該 label 是否有值，第 1 個找的是 label 8 的值，第 2 個找的是 label 2 的值，以此類推…</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val findLabelSequence = shuffleIndex(Stream.range(1,10).toArray).zipWithIndex.sortWith(_._1 &lt; _._1).map(i =&gt; (i._1 , (i._2 + 1)))
+println(findLabelSequence.mkString(",")) // (1,8),(2,2),(3,4),(4,9),(5,3),(6,1),(7,5),(8,6),(9,7)
+</code></pre></div></div>
+
+<p>假設有這些 label 及分數，透過 map 的方式將 Seq[string] 轉成 Map[Int,Double]</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val labels = Seq(
+  "1:0.5,4:0.3,8:0.4" ,
+  "2:0.7,7:0.9"
+)
+val personMaps = labels.map(_.split(",").map(
+  linfo =&gt; {
+    (linfo.split(":")(0).toInt , linfo.split(":")(1).toDouble)
+  }
+).toMap)
+personMaps.foreach(println(_))
+
+// person1 : Map(1 -&gt; 0.5, 4 -&gt; 0.3, 8 -&gt; 0.4)
+// person2 : Map(2 -&gt; 0.7, 7 -&gt; 0.9)
+</code></pre></div></div>
+
+<p>接著只要照剛剛的 findLabelSequence 順序找看看該 Key 是否存在，第一個找到的話就變成該 label 的一個 signatureIndex．<br />
+person1 根據 findLabelSequence 算的 signatureIndex 會是 8．<br />
+person2 根據 findLabelSequence 算的 signatureIndex 會是 2．<br />
+接著可以建立 signature matrix [8] 和 [2]，接著只要有新的 person(person3) 進來，如果透過 findLabelSequence 算出來的值是 8，就可以把該 person 放到 [8] 這著 bucket 裡．<br />
+代表 person1 和 person3 是屬於同一類型的人．</p>
+
+
+      </article>
+      <hr>
+    </div>
+  </div>
+</div>
+    </div>
+
+    
+    <div id="top" data-toggle="tooltip" data-placement="left" title="back to top">
+      <a href="javascript:;">
+        <div class="arrow"></div>
+        <div class="stick"></div>
+      </a>
+    </div>
+
+    <footer class="">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12">
+        <a href="mailto:"><span class="glyphicon glyphicon-envelope"></span> </a>
+          <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span><a href="_posts/spark/2019-02-21-spark-LSH.md">View source</a></span>
+          <span class="point"> · </span>
+		      <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span>&copy; 2019 Daniel</span>
+      </div>
+    </div>
+  </div>
+</footer>
+  
+  </body>
+</html>

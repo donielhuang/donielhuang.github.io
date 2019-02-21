@@ -6,7 +6,7 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Spark Matrix</title>
-	<meta name="description" content="spark matrix">
+	<meta name="description" content="spark matrix 計算 cosine Similarity">
 	
 	<link rel="canonical" href="http://localhost:4000/spark/2019/02/20/spark-matrix.html">
 	<link rel="alternate" type="application/rss+xml" title="Daniel's Blog" href="http://localhost:4000/feed.xml" />
@@ -96,9 +96,9 @@
       </header>
       <hr>
       <article>
-        <h2 id="spark-matrix">spark matrix</h2>
+        <h3 id="spark-matrix-計算-cosine-similarity">spark matrix 計算 cosine Similarity</h3>
 
-<p>假設有一群人的資料，有每個人的 label 跟分數．透過這些分數計算這些人的相似程度如何．</p>
+<p>假設有一群人的資料，有每個人的 label 跟分數．將每個人的 label 與分數轉成向量後計算彼此的 cosine Similarity，透過 cosine Similarity 來看這些人的相似程度如何．</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val personDatas = Seq(
   ("person1","1:0.5,2:0.3,3:0.4") ,
@@ -107,7 +107,11 @@
   ("person4","1:0.3,2:0.6,3:0.8")
 )
 </code></pre></div></div>
-<p>將上面的資料轉成 IndexedRowMatrix．透過 RDD 的 zipWithIndex，可以取得每個元素的 index 從 0 開始．</p>
+<p>person1 的 label 分數轉成 [0.5,0.3,0.4] 代表一個維度為 3 的向量．<br />
+person2 的 label 分數轉成 [0.0,0.7,0.0]．<br />
+然後用 cosine Similarity 的公式來計算 [0.5,0.3,0.4] 與 [0.0,0.7,0.0] 的 cosine Similarity value．</p>
+
+<p>接著將上面的資料轉成 IndexedRowMatrix．透過 RDD 的 zipWithIndex，可以取得每個元素的 index 從 0 開始 :</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val comparePersons = spark.sparkContext.parallelize(personDatas).toDF("id","labels").cache()
 
@@ -141,8 +145,8 @@ MatrixEntry(2,3,0.37020976437050546)
 
 </code></pre></div></div>
 
-<p>columnSimilarities 使用說明 : <br />
-1.原來的矩陣<br />
+<h3 id="columnsimilarities-使用說明">columnSimilarities 使用說明</h3>
+<p>1.原來的矩陣<br />
 [0.5 , 0.3 , 0.4 , 0]<br />
 [0 , 0.7 , 0 , 0]<br />
 [0.9 , 0 , 0.1 , 0]<br />
@@ -186,6 +190,82 @@ def genDot(x: Array[Double], y: Array[Double]): Double = {
 def magnitude(x: Array[Double]): Double = {
 math.sqrt(x.map(i =&gt; i*i).sum)
 }
+</code></pre></div></div>
+
+<h3 id="其他參考作法">其他參考作法</h3>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val spark = SparkSession.builder()
+  .master("local[*]")
+  .appName("testtest")
+  .getOrCreate()
+
+import spark.implicits._
+
+val testSeq = Seq(
+  ("1","1:0.5,2:0.3,3:0.4") ,
+  ("2","2:0.7") ,
+  ("3","1:0.9,3:0.1")
+)
+val rddEntrys = testSeq.map {
+  case(i , labels) =&gt; {
+    val entrys = labels.split(",").map(l =&gt; {
+      val index = l.split(":")(0).toInt - 1
+      val v = l.split(":")(1).toDouble
+      new MatrixEntry(index , (i.toLong - 1) , v )
+    })
+    entrys
+  }
+}.flatten
+
+val temp = spark.sparkContext.parallelize(rddEntrys)
+
+val corMatrix = new CoordinateMatrix(temp)
+corMatrix.entries.foreach(println(_))
+
+val cv = corMatrix.toIndexedRowMatrix().columnSimilarities()
+cv.entries.foreach(println(_))
+</code></pre></div></div>
+<p>印出結果</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>MatrixEntry(0,1,0.42426406871192845)
+MatrixEntry(0,2,0.7652514332541697)
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val spark = SparkSession.builder()
+  .master("local[*]")
+  .appName("testtest")
+  .getOrCreate()
+
+import spark.implicits._
+
+val testSeq = Seq(
+  ("1","1:0.5,2:0.3,3:0.4") ,
+  ("2","2:0.7") ,
+  ("3","1:0.9,3:0.1")
+)
+val rddEntrys = testSeq.map {
+  case(i , labels) =&gt; {
+    val entrys = labels.split(",").map(l =&gt; {
+      val index = l.split(":")(0).toInt - 1
+      val v = l.split(":")(1).toDouble
+      (index , ((i.toLong - 1).toInt , v) )
+    })
+    entrys
+  }
+}.flatten
+
+val indexedRows = spark.sparkContext.parallelize(rddEntrys).groupByKey.map {
+  case(i, vectorEntries) =&gt; {
+    IndexedRow(i, Vectors.sparse(3, vectorEntries.toSeq))
+  }
+}
+val numRows = indexedRows.count
+
+val cv = new IndexedRowMatrix(indexedRows, numRows, 3).columnSimilarities()
+cv.entries.foreach(println(_))
+</code></pre></div></div>
+<p>印出結果</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>MatrixEntry(0,1,0.42426406871192845)
+MatrixEntry(0,2,0.7652514332541697)
 </code></pre></div></div>
 
 

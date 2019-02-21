@@ -5,15 +5,83 @@
     <description>Daniel's Blogs</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 20 Feb 2019 18:35:21 +0800</pubDate>
-    <lastBuildDate>Wed, 20 Feb 2019 18:35:21 +0800</lastBuildDate>
+    <pubDate>Thu, 21 Feb 2019 19:27:36 +0800</pubDate>
+    <lastBuildDate>Thu, 21 Feb 2019 19:27:36 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
     
       <item>
-        <title>Spark Matrix</title>
-        <description>&lt;h2 id=&quot;spark-matrix&quot;&gt;spark matrix&lt;/h2&gt;
+        <title>Spark Lsh</title>
+        <description>&lt;h3 id=&quot;spark-lsh-實作&quot;&gt;spark LSH 實作&lt;/h3&gt;
 
-&lt;p&gt;假設有一群人的資料，有每個人的 label 跟分數．透過這些分數計算這些人的相似程度如何．&lt;/p&gt;
+&lt;p&gt;建立一組 index 並 shuffle．透過 Stream.range 建立一組 1 到 10 的數字，並透過 random swap 的方式打亂．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val suffleIndex = shuffleIndex(Stream.range(1,10).toArray)
+
+def shuffleIndex(arr: Array[Int]): Array[Int] = {
+  val rand = new Random()
+  for(i &amp;lt;- arr.size to 1 by -1) {
+    swap(arr , (i-1) , rand.nextInt(i))
+  }
+  arr
+}
+
+def swap(arr: Array[Int], i:Int ,j:Int): Array[Int] = {
+  val tmp = arr(i)
+  arr(i) = arr(j)
+  arr(j) = tmp
+  arr
+} 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;輸出結果會是&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;println(suffleIndex.mkString(&quot;,&quot;)) // 6,2,1,7,5,8,3,9,4
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;建立 label 的查找順序查看該 label 是否有值，第 1 個找的是 label 8 的值，第 2 個找的是 label 2 的值，以此類推…&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val findLabelSequence = shuffleIndex(Stream.range(1,10).toArray).zipWithIndex.sortWith(_._1 &amp;lt; _._1).map(i =&amp;gt; (i._1 , (i._2 + 1)))
+println(findLabelSequence.mkString(&quot;,&quot;)) // (1,8),(2,2),(3,4),(4,9),(5,3),(6,1),(7,5),(8,6),(9,7)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;假設有這些 label 及分數，透過 map 的方式將 Seq[string] 轉成 Map[Int,Double]&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val labels = Seq(
+  &quot;1:0.5,4:0.3,8:0.4&quot; ,
+  &quot;2:0.7,7:0.9&quot;
+)
+val personMaps = labels.map(_.split(&quot;,&quot;).map(
+  linfo =&amp;gt; {
+    (linfo.split(&quot;:&quot;)(0).toInt , linfo.split(&quot;:&quot;)(1).toDouble)
+  }
+).toMap)
+personMaps.foreach(println(_))
+
+// person1 : Map(1 -&amp;gt; 0.5, 4 -&amp;gt; 0.3, 8 -&amp;gt; 0.4)
+// person2 : Map(2 -&amp;gt; 0.7, 7 -&amp;gt; 0.9)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;接著只要照剛剛的 findLabelSequence 順序找看看該 Key 是否存在，第一個找到的話就變成該 label 的一個 signatureIndex．&lt;br /&gt;
+person1 根據 findLabelSequence 算的 signatureIndex 會是 8．&lt;br /&gt;
+person2 根據 findLabelSequence 算的 signatureIndex 會是 2．&lt;br /&gt;
+接著可以建立 signature matrix [8] 和 [2]，接著只要有新的 person(person3) 進來，如果透過 findLabelSequence 算出來的值是 8，就可以把該 person 放到 [8] 這著 bucket 裡．&lt;br /&gt;
+代表 person1 和 person3 是屬於同一類型的人．&lt;/p&gt;
+
+</description>
+        <pubDate>Thu, 21 Feb 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/spark/2019/02/21/spark-LSH.html</link>
+        <guid isPermaLink="true">http://localhost:4000/spark/2019/02/21/spark-LSH.html</guid>
+        
+        
+        <category>spark</category>
+        
+      </item>
+    
+      <item>
+        <title>Spark Matrix</title>
+        <description>&lt;h3 id=&quot;spark-matrix-計算-cosine-similarity&quot;&gt;spark matrix 計算 cosine Similarity&lt;/h3&gt;
+
+&lt;p&gt;假設有一群人的資料，有每個人的 label 跟分數．將每個人的 label 與分數轉成向量後計算彼此的 cosine Similarity，透過 cosine Similarity 來看這些人的相似程度如何．&lt;/p&gt;
 
 &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val personDatas = Seq(
   (&quot;person1&quot;,&quot;1:0.5,2:0.3,3:0.4&quot;) ,
@@ -22,7 +90,11 @@
   (&quot;person4&quot;,&quot;1:0.3,2:0.6,3:0.8&quot;)
 )
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;將上面的資料轉成 IndexedRowMatrix．透過 RDD 的 zipWithIndex，可以取得每個元素的 index 從 0 開始．&lt;/p&gt;
+&lt;p&gt;person1 的 label 分數轉成 [0.5,0.3,0.4] 代表一個維度為 3 的向量．&lt;br /&gt;
+person2 的 label 分數轉成 [0.0,0.7,0.0]．&lt;br /&gt;
+然後用 cosine Similarity 的公式來計算 [0.5,0.3,0.4] 與 [0.0,0.7,0.0] 的 cosine Similarity value．&lt;/p&gt;
+
+&lt;p&gt;接著將上面的資料轉成 IndexedRowMatrix．透過 RDD 的 zipWithIndex，可以取得每個元素的 index 從 0 開始 :&lt;/p&gt;
 
 &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val comparePersons = spark.sparkContext.parallelize(personDatas).toDF(&quot;id&quot;,&quot;labels&quot;).cache()
 
@@ -56,8 +128,8 @@ MatrixEntry(2,3,0.37020976437050546)
 
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
 
-&lt;p&gt;columnSimilarities 使用說明 : &lt;br /&gt;
-1.原來的矩陣&lt;br /&gt;
+&lt;h3 id=&quot;columnsimilarities-使用說明&quot;&gt;columnSimilarities 使用說明&lt;/h3&gt;
+&lt;p&gt;1.原來的矩陣&lt;br /&gt;
 [0.5 , 0.3 , 0.4 , 0]&lt;br /&gt;
 [0 , 0.7 , 0 , 0]&lt;br /&gt;
 [0.9 , 0 , 0.1 , 0]&lt;br /&gt;
@@ -101,6 +173,82 @@ def genDot(x: Array[Double], y: Array[Double]): Double = {
 def magnitude(x: Array[Double]): Double = {
 math.sqrt(x.map(i =&amp;gt; i*i).sum)
 }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;其他參考作法&quot;&gt;其他參考作法&lt;/h3&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val spark = SparkSession.builder()
+  .master(&quot;local[*]&quot;)
+  .appName(&quot;testtest&quot;)
+  .getOrCreate()
+
+import spark.implicits._
+
+val testSeq = Seq(
+  (&quot;1&quot;,&quot;1:0.5,2:0.3,3:0.4&quot;) ,
+  (&quot;2&quot;,&quot;2:0.7&quot;) ,
+  (&quot;3&quot;,&quot;1:0.9,3:0.1&quot;)
+)
+val rddEntrys = testSeq.map {
+  case(i , labels) =&amp;gt; {
+    val entrys = labels.split(&quot;,&quot;).map(l =&amp;gt; {
+      val index = l.split(&quot;:&quot;)(0).toInt - 1
+      val v = l.split(&quot;:&quot;)(1).toDouble
+      new MatrixEntry(index , (i.toLong - 1) , v )
+    })
+    entrys
+  }
+}.flatten
+
+val temp = spark.sparkContext.parallelize(rddEntrys)
+
+val corMatrix = new CoordinateMatrix(temp)
+corMatrix.entries.foreach(println(_))
+
+val cv = corMatrix.toIndexedRowMatrix().columnSimilarities()
+cv.entries.foreach(println(_))
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;印出結果&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;MatrixEntry(0,1,0.42426406871192845)
+MatrixEntry(0,2,0.7652514332541697)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val spark = SparkSession.builder()
+  .master(&quot;local[*]&quot;)
+  .appName(&quot;testtest&quot;)
+  .getOrCreate()
+
+import spark.implicits._
+
+val testSeq = Seq(
+  (&quot;1&quot;,&quot;1:0.5,2:0.3,3:0.4&quot;) ,
+  (&quot;2&quot;,&quot;2:0.7&quot;) ,
+  (&quot;3&quot;,&quot;1:0.9,3:0.1&quot;)
+)
+val rddEntrys = testSeq.map {
+  case(i , labels) =&amp;gt; {
+    val entrys = labels.split(&quot;,&quot;).map(l =&amp;gt; {
+      val index = l.split(&quot;:&quot;)(0).toInt - 1
+      val v = l.split(&quot;:&quot;)(1).toDouble
+      (index , ((i.toLong - 1).toInt , v) )
+    })
+    entrys
+  }
+}.flatten
+
+val indexedRows = spark.sparkContext.parallelize(rddEntrys).groupByKey.map {
+  case(i, vectorEntries) =&amp;gt; {
+    IndexedRow(i, Vectors.sparse(3, vectorEntries.toSeq))
+  }
+}
+val numRows = indexedRows.count
+
+val cv = new IndexedRowMatrix(indexedRows, numRows, 3).columnSimilarities()
+cv.entries.foreach(println(_))
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;印出結果&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;MatrixEntry(0,1,0.42426406871192845)
+MatrixEntry(0,2,0.7652514332541697)
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
 
 </description>

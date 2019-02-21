@@ -150,7 +150,45 @@ personMaps.foreach(println(_))
 person1 根據 findLabelSequence 算的 signatureIndex 會是 8．<br />
 person2 根據 findLabelSequence 算的 signatureIndex 會是 2．<br />
 接著可以建立 signature matrix [8] 和 [2]，接著只要有新的 person(person3) 進來，如果透過 findLabelSequence 算出來的值是 8，就可以把該 person 放到 [8] 這著 bucket 裡．<br />
-代表 person1 和 person3 是屬於同一類型的人．</p>
+代表 person1 和 person3 是屬於同一類型的人．
+接著繼續實作…<br />
+給一組 Map (Map(1 -&gt; 0.5, 4 -&gt; 0.3, 8 -&gt; 0.4)) 和 findLabelSequence (Seq((1,8),(2,2),(3,4),(4,9),(5,3),(6,1),(7,5),(8,6),(9,7))) 來找到 signatureIndex</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>def findSignatureIndex(labels:Map[Int,Double],findLabelSequence:Seq[Tuple2[Int,Int]]):Int = {
+    println("labels -&gt; " + labels)
+    println("findLabelSequence -&gt; " + findLabelSequence)
+	val resultList = findLabelSequence.filter(s =&gt; labels.contains(s._2)).take(1)
+	if(resultList.isEmpty) {
+	  0
+	} else {
+	  resultList(0)._2
+	}
+}
+</code></pre></div></div>
+<p>找出每個人的 signatureIndex</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val labels = Seq(
+  "1:0.5,4:0.3,8:0.4" ,
+  "2:0.7,7:0.9"
+)
+
+val personMaps = labels.map(_.split(",").map(
+  linfo =&gt; {
+    (linfo.split(":")(0).toInt , linfo.split(":")(1).toDouble)
+  }
+).toMap)
+val findLabelSequence = shuffleIndex(Stream.range(1,10).toArray).zipWithIndex.sortWith(_._1 &lt; _._1).map(i =&gt; (i._1 , (i._2 + 1)))
+val signatureIndex = personMaps.map(m =&gt; findSignatureIndex(m , findLabelSequence))
+signatureIndex.foreach(println(_))
+
+</code></pre></div></div>
+<p>執行結果</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>labels -&gt; Map(1 -&gt; 0.5, 4 -&gt; 0.3, 8 -&gt; 0.4)
+findLabelSequence -&gt; WrappedArray((1,2), (2,9), (3,8), (4,1), (5,5), (6,6), (7,3), (8,4), (9,7))
+labels -&gt; Map(2 -&gt; 0.7, 7 -&gt; 0.9)
+findLabelSequence -&gt; WrappedArray((1,2), (2,9), (3,8), (4,1), (5,5), (6,6), (7,3), (8,4), (9,7))
+8
+2
+</code></pre></div></div>
 
 
       </article>

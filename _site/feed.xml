@@ -5,9 +5,78 @@
     <description>Daniel's Blogs</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 21 Feb 2019 19:50:45 +0800</pubDate>
-    <lastBuildDate>Thu, 21 Feb 2019 19:50:45 +0800</lastBuildDate>
+    <pubDate>Fri, 22 Feb 2019 19:13:16 +0800</pubDate>
+    <lastBuildDate>Fri, 22 Feb 2019 19:13:16 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
+    
+      <item>
+        <title>Spark Repartitionandsortwithinpartitions</title>
+        <description>&lt;h3 id=&quot;spark-rdd-repartitionandsortwithinpartitions-測試&quot;&gt;spark RDD repartitionAndSortWithinPartitions 測試&lt;/h3&gt;
+
+&lt;p&gt;透過 RDD 的 repartitionAndSortWithinPartitions 可以把 RDD 重新 repartition 並在新的 partition 進行排序．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val spark = SparkSession.builder().master(&quot;local[*]&quot;).appName(&quot;testtest&quot;).getOrCreate()
+val data = spark.sparkContext.parallelize(Seq(5,2,1,66,3,21,52,35,10,88,7,28))
+println(&quot;bdfore : &quot; + data.getNumPartitions)
+val partitionData = data.zipWithIndex.repartitionAndSortWithinPartitions(new HashPartitioner(3))
+println(&quot;after : &quot; + partitionData.getNumPartitions)
+val accum = spark.sparkContext.longAccumulator(&quot;My Accumulator&quot;)
+partitionData.mapPartitions(it =&amp;gt; {
+  val topData = it.toSeq.iterator
+  val dataStr = topData.mkString(&quot;;&quot;)
+  dataStr.split(&quot;;&quot;).foreach(d =&amp;gt; accum.add(d.split(&quot;,&quot;)(0).replace(&quot;(&quot;,&quot;&quot;).toInt))
+  println(accum.value + &quot; # &quot; + dataStr)
+  topData
+}).collect()
+println(&quot;accum value is &quot; + accum.value)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;根據下列的結果可以看出，原來的 partition 是 8，repartition 後就變成給定的 3，partition 內容 :&lt;br /&gt;
+(2,1);(5,0);(35,7) 在同一個 partition&lt;br /&gt;
+(3,4);(21,5);(66,3) 在同一個 partition&lt;br /&gt;
+(1,2);(7,10);(10,8);(28,11);(52,6);(88,9) 在同一個 partition&lt;br /&gt;
+透過 spaark 的 Accumulator 可以看出每個 partition 的狀況，以及最後算出來的結果．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;bdfore : 8
+after : 3
+42 # (2,1);(5,0);(35,7)
+90 # (3,4);(21,5);(66,3)
+186 # (1,2);(7,10);(10,8);(28,11);(52,6);(88,9)
+accum value is 318
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;接著只要修改這一行，就可以達到 top N 的 效果．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val topData = it.toSeq.take(2).iterator
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;就會取各自 partition 的前 2 個 element．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;7 # (2,1);(5,0)
+24 # (3,4);(21,5)
+8 # (1,2);(7,10)
+accum value is 39
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;如果是要針對所有的元素排序可以把 HashPartitioner 的值設 1，表示所有的元素都會在同一個 partition 裡．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val partitionData = data.zipWithIndex.repartitionAndSortWithinPartitions(new HashPartitioner(1))
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;結果會是&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;bdfore : 8
+after : 1
+3 # (1,2);(2,1)
+accum value is 3
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+</description>
+        <pubDate>Fri, 22 Feb 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/spark/2019/02/22/spark-repartitionAndSortWithinPartitions.html</link>
+        <guid isPermaLink="true">http://localhost:4000/spark/2019/02/22/spark-repartitionAndSortWithinPartitions.html</guid>
+        
+        
+        <category>spark</category>
+        
+      </item>
     
       <item>
         <title>Spark Lsh</title>
@@ -65,7 +134,7 @@ personMaps.foreach(println(_))
 person1 根據 findLabelSequence 算的 signatureIndex 會是 8．&lt;br /&gt;
 person2 根據 findLabelSequence 算的 signatureIndex 會是 2．&lt;br /&gt;
 接著可以建立 signature matrix [8] 和 [2]，接著只要有新的 person(person3) 進來，如果透過 findLabelSequence 算出來的值是 8，就可以把該 person 放到 [8] 這著 bucket 裡．&lt;br /&gt;
-代表 person1 和 person3 是屬於同一類型的人．
+代表 person1 和 person3 是屬於同一類型的人．&lt;br /&gt;
 接著繼續實作…&lt;br /&gt;
 給一組 Map (Map(1 -&amp;gt; 0.5, 4 -&amp;gt; 0.3, 8 -&amp;gt; 0.4)) 和 findLabelSequence (Seq((1,8),(2,2),(3,4),(4,9),(5,3),(6,1),(7,5),(8,6),(9,7))) 來找到 signatureIndex&lt;/p&gt;
 &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;def findSignatureIndex(labels:Map[Int,Double],findLabelSequence:Seq[Tuple2[Int,Int]]):Int = {
@@ -104,6 +173,27 @@ findLabelSequence -&amp;gt; WrappedArray((1,2), (2,9), (3,8), (4,1), (5,5), (6,6
 8
 2
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;cat *.csv&lt;/td&gt;
+      &lt;td&gt;awk -F, ‘{if($2 != “NaN”) {print $0}}’&lt;/td&gt;
+      &lt;td&gt;sort –parallel=10 -t, -k2 &amp;gt; sort_query_result.txt&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;cat *.csv&lt;/td&gt;
+      &lt;td&gt;sort –parallel=10 -t, -k2&lt;/td&gt;
+      &lt;td&gt;awk -F, ‘{if($2 ~ /[.]/) {print $0}}’&lt;/td&gt;
+      &lt;td&gt;tail -n 1000 &amp;gt; lookLikePerson.txt&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
 
 </description>
         <pubDate>Thu, 21 Feb 2019 00:00:00 +0800</pubDate>

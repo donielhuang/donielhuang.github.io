@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Spark Repartitionandsortwithinpartitions</title>
+	<meta name="description" content="spark RDD repartitionAndSortWithinPartitions 測試">
+	
+	<link rel="canonical" href="http://localhost:4000/spark/2019/02/22/spark-repartitionAndSortWithinPartitions.html">
+	<link rel="alternate" type="application/rss+xml" title="Daniel's Blog" href="http://localhost:4000/feed.xml" />
+	
+	<!-- <link rel="stylesheet" href="/css/main.css"> -->
+    
+    <link rel="stylesheet" type="text/css" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/index.css">
+	<script type="text/javascript" src="/static/js/jquery-1.11.1.min.js"></script>
+	<script type="text/javascript" src="/static/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/css/monokai_sublime.min.css">
+	<script type="text/javascript" src="/static/js/highlight.min.js"></script>
+
+    <!--
+    <link rel="stylesheet" type="text/css" href="http://apps.bdimg.com/libs/bootstrap/3.3.0/css/bootstrap.min.css">
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/jquery/2.1.1/jquery.min.js"></script>
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="http://apps.bdimg.com/libs/highlight.js/8.4/styles/monokai_sublime.min.css">
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/highlight.js/8.4/highlight.min.js"></script>
+    -->
+    
+	<script type="text/javascript" src="/static/js/index.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+ <!--  <body data-spy="scroll" data-target="#myAffix"> -->
+  <body>
+
+    <header>
+
+<!-- navbar -->
+  <nav class="navbar navbar-inverse">
+  <div class="container">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Daniel's Blog</a>
+      <p class="navbar-text"></p>
+    </div>
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+      <ul class="nav navbar-nav navbar-right">
+
+        
+          <li>
+        
+        <a href="/">Home</a></li>
+
+        
+          
+            
+              <li>
+            
+            <a href="/projects/"><span class="glyphicon "></span> Projects</a></li>
+          
+        
+          
+            
+              <li>
+            
+            <a href="/about/"><span class="glyphicon "></span> About</a></li>
+          
+        
+          
+        
+          
+        
+      </ul>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container-fluid -->
+</nav>
+
+</header>
+
+    <div id="main" class="container main">
+      <div class="row">
+  <div id="myArticle" class="col-sm-9">
+    <div class="post-area post">
+      <header>
+        <h1>Spark Repartitionandsortwithinpartitions</h1>
+        <p>Feb 22, 2019</p>
+      </header>
+      <hr>
+      <article>
+        <h3 id="spark-rdd-repartitionandsortwithinpartitions-測試">spark RDD repartitionAndSortWithinPartitions 測試</h3>
+
+<p>透過 RDD 的 repartitionAndSortWithinPartitions 可以把 RDD 重新 repartition 並在新的 partition 進行排序．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val spark = SparkSession.builder().master("local[*]").appName("testtest").getOrCreate()
+val data = spark.sparkContext.parallelize(Seq(5,2,1,66,3,21,52,35,10,88,7,28))
+println("bdfore : " + data.getNumPartitions)
+val partitionData = data.zipWithIndex.repartitionAndSortWithinPartitions(new HashPartitioner(3))
+println("after : " + partitionData.getNumPartitions)
+val accum = spark.sparkContext.longAccumulator("My Accumulator")
+partitionData.mapPartitions(it =&gt; {
+  val topData = it.toSeq.iterator
+  val dataStr = topData.mkString(";")
+  dataStr.split(";").foreach(d =&gt; accum.add(d.split(",")(0).replace("(","").toInt))
+  println(accum.value + " # " + dataStr)
+  topData
+}).collect()
+println("accum value is " + accum.value)
+</code></pre></div></div>
+
+<p>根據下列的結果可以看出，原來的 partition 是 8，repartition 後就變成給定的 3，partition 內容 :<br />
+(2,1);(5,0);(35,7) 在同一個 partition<br />
+(3,4);(21,5);(66,3) 在同一個 partition<br />
+(1,2);(7,10);(10,8);(28,11);(52,6);(88,9) 在同一個 partition<br />
+透過 spaark 的 Accumulator 可以看出每個 partition 的狀況，以及最後算出來的結果．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bdfore : 8
+after : 3
+42 # (2,1);(5,0);(35,7)
+90 # (3,4);(21,5);(66,3)
+186 # (1,2);(7,10);(10,8);(28,11);(52,6);(88,9)
+accum value is 318
+</code></pre></div></div>
+
+<p>接著只要修改這一行，就可以達到 top N 的 效果．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val topData = it.toSeq.take(2).iterator
+</code></pre></div></div>
+<p>就會取各自 partition 的前 2 個 element．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>7 # (2,1);(5,0)
+24 # (3,4);(21,5)
+8 # (1,2);(7,10)
+accum value is 39
+</code></pre></div></div>
+<p>如果是要針對所有的元素排序可以把 HashPartitioner 的值設 1，表示所有的元素都會在同一個 partition 裡．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val partitionData = data.zipWithIndex.repartitionAndSortWithinPartitions(new HashPartitioner(1))
+</code></pre></div></div>
+<p>結果會是</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bdfore : 8
+after : 1
+3 # (1,2);(2,1)
+accum value is 3
+</code></pre></div></div>
+
+
+      </article>
+      <hr>
+    </div>
+  </div>
+</div>
+    </div>
+
+    
+    <div id="top" data-toggle="tooltip" data-placement="left" title="back to top">
+      <a href="javascript:;">
+        <div class="arrow"></div>
+        <div class="stick"></div>
+      </a>
+    </div>
+
+    <footer class="">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12">
+        <a href="mailto:"><span class="glyphicon glyphicon-envelope"></span> </a>
+          <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span><a href="_posts/spark/2019-02-22-spark-repartitionAndSortWithinPartitions.md">View source</a></span>
+          <span class="point"> · </span>
+		      <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span>&copy; 2019 Daniel</span>
+      </div>
+    </div>
+  </div>
+</footer>
+  
+  </body>
+</html>

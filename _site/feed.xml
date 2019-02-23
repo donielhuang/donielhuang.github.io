@@ -5,9 +5,72 @@
     <description>Daniel's Blogs</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Fri, 22 Feb 2019 19:13:16 +0800</pubDate>
-    <lastBuildDate>Fri, 22 Feb 2019 19:13:16 +0800</lastBuildDate>
+    <pubDate>Sat, 23 Feb 2019 18:58:58 +0800</pubDate>
+    <lastBuildDate>Sat, 23 Feb 2019 18:58:58 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
+    
+      <item>
+        <title>Spark Querycassandra</title>
+        <description>&lt;h3 id=&quot;spark-query-cassandra&quot;&gt;spark query Cassandra&lt;/h3&gt;
+
+&lt;p&gt;建立 Cassandra KEYSPACE 以及 TABLE&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;CREATE KEYSPACE miks2 WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1' }  AND durable_writes = true;
+
+CREATE TABLE miks2.testpersonlabelvector(
+id text,
+labelvector list&amp;lt;double&amp;gt;,
+PRIMARY KEY(id)
+) ;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;看 KEYSPACE 狀態&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;nodetool status miks2 ;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;使用 spark Cassandra connector 對 cassandra 做查詢，詳細資料可以參考&lt;a href=&quot;https://github.com/datastax/spark-cassandra-connector&quot;&gt;spark-cassandra-connector&lt;/a&gt;．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;import com.datastax.spark.connector._
+
+val spark = SparkSession.builder()
+  .appName(&quot;LookLikePersonLSH&quot;)
+  .master(&quot;local[*]&quot;)
+  .config(&quot;spark.cassandra.connection.host&quot;, &quot;192.168.6.31,192.168.6.32,192.168.6.33&quot;)
+  .config(&quot;spark.cassandra.auth.username&quot;, &quot;miuser&quot;)
+  .config(&quot;spark.cassandra.auth.password&quot;, &quot;mimimi123&quot;)
+  .getOrCreate()
+
+val allPersons = spark.sparkContext.cassandraTable[(String,Seq[Double])](&quot;miks2&quot;,&quot;testpersonlabelvector&quot;)
+      .select(&quot;id&quot;,&quot;labelvector&quot;).keyBy[Tuple1[String]](&quot;id&quot;)
+
+val testpersonSeed = &quot;hash:52f479d0-126c-4ccd-bf3b-3d99a6d3fec0,hash:79bdf00a-b739-42a5-bb3c-c55315011b52,hash:08565f43-5e61-4d4f-ac5c-d2fa2416e8f0&quot;
+val seedPersons = spark.sparkContext.cassandraTable[(String,Seq[Double])](&quot;miks2&quot;,&quot;testpersonlabelvector&quot;)
+      .select(&quot;id&quot;,&quot;labelvector&quot;).where(&quot;id in ? &quot; , testpersonSeed.split(&quot;,&quot;).toSeq).keyBy[Tuple1[String]](&quot;id&quot;)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;計算結果並存到 HDFS&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val tempList = seedPersons.cartesian(allPersons).map(ds =&amp;gt; (ds._1._1._1 , (ds._2._1._1 , LabelVectorUtil().cosineSimilarity(ds._1._2._2 , ds._2._2._2))))
+val takeCount = (outputPersons / allPersons.getNumPartitions)
+val resultIdList = tempList.mapPartitions(rowit =&amp;gt; {
+    val tempDatas = rowit.toSeq.groupBy(_._1)
+    val takeCnt = (takeCount / tempDatas.size) + 1
+    tempDatas.map(personInfos =&amp;gt; {
+      personInfos._2.sortWith(_._2._2 &amp;gt; _._2._2).take(takeCnt)
+    }).flatten.toIterator
+  }).cache()
+resultIdList.saveAsTextFile(&quot;/enrich/tempResult/LookLikePersons&quot;)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+</description>
+        <pubDate>Sat, 23 Feb 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/spark/2019/02/23/spark-queryCassandra.html</link>
+        <guid isPermaLink="true">http://localhost:4000/spark/2019/02/23/spark-queryCassandra.html</guid>
+        
+        
+        <category>spark</category>
+        
+      </item>
     
       <item>
         <title>Spark Repartitionandsortwithinpartitions</title>

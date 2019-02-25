@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Spark Kmeans</title>
+	<meta name="description" content="spark k-means">
+	
+	<link rel="canonical" href="http://localhost:4000/spark/2019/02/25/spark-kmeans.html">
+	<link rel="alternate" type="application/rss+xml" title="Daniel's Blog" href="http://localhost:4000/feed.xml" />
+	
+	<!-- <link rel="stylesheet" href="/css/main.css"> -->
+    
+    <link rel="stylesheet" type="text/css" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/index.css">
+	<script type="text/javascript" src="/static/js/jquery-1.11.1.min.js"></script>
+	<script type="text/javascript" src="/static/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/css/monokai_sublime.min.css">
+	<script type="text/javascript" src="/static/js/highlight.min.js"></script>
+
+    <!--
+    <link rel="stylesheet" type="text/css" href="http://apps.bdimg.com/libs/bootstrap/3.3.0/css/bootstrap.min.css">
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/jquery/2.1.1/jquery.min.js"></script>
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="http://apps.bdimg.com/libs/highlight.js/8.4/styles/monokai_sublime.min.css">
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/highlight.js/8.4/highlight.min.js"></script>
+    -->
+    
+	<script type="text/javascript" src="/static/js/index.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+ <!--  <body data-spy="scroll" data-target="#myAffix"> -->
+  <body>
+
+    <header>
+
+<!-- navbar -->
+  <nav class="navbar navbar-inverse">
+  <div class="container">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Daniel's Blog</a>
+      <p class="navbar-text"></p>
+    </div>
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+      <ul class="nav navbar-nav navbar-right">
+
+        
+          <li>
+        
+        <a href="/">Home</a></li>
+
+        
+          
+            
+              <li>
+            
+            <a href="/projects/"><span class="glyphicon "></span> Projects</a></li>
+          
+        
+          
+            
+              <li>
+            
+            <a href="/about/"><span class="glyphicon "></span> About</a></li>
+          
+        
+          
+        
+          
+        
+      </ul>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container-fluid -->
+</nav>
+
+</header>
+
+    <div id="main" class="container main">
+      <div class="row">
+  <div id="myArticle" class="col-sm-9">
+    <div class="post-area post">
+      <header>
+        <h1>Spark Kmeans</h1>
+        <p>Feb 25, 2019</p>
+      </header>
+      <hr>
+      <article>
+        <h3 id="spark-k-means">spark k-means</h3>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val spark = SparkSession.builder().master("local[*]").appName("testtest").config("spark.cassandra.connection.host", "192.168.6.31").getOrCreate()
+val dataset = spark.createDataFrame(Seq(
+  (0, Vectors.sparse(6, Seq((0, 1.0), (1, 1.0), (2, 1.0)))), // [1.0 , 1.0 , 1.0 , 0   , 0   , 0  ]
+  (1, Vectors.sparse(6, Seq((2, 1.0), (3, 1.0), (4, 1.0)))), // [0   , 0   , 1.0 , 1.0 , 1.0 , 0  ]
+  (2, Vectors.sparse(6, Seq((0, 1.0), (2, 1.0), (4, 1.0)))), // [1.0 , 0   , 1.0 , 0   , 1.0 , 0  ]
+  (3, Vectors.sparse(6, Seq((1, 1.0), (3, 1.0), (4, 1.0)))), // [0   , 1.0 , 0   , 1.0 , 1.0 , 0  ]
+  (4, Vectors.sparse(6, Seq((1, 1.0), (3, 1.0), (5, 1.0)))), // [0   , 1.0 , 0   , 1.0 , 0   , 1.0]
+  (5, Vectors.sparse(6, Seq((2, 1.0), (3, 1.0), (5, 1.0)))), // [0   , 0   , 1.0 , 1.0 , 0   , 1.0]
+  (6, Vectors.sparse(6, Seq((1, 1.0), (2, 1.0), (4, 1.0)))), // [0   , 1.0 , 1.0 , 0   , 1.0 , 0  ]
+  (7, Vectors.sparse(6, Seq((0, 1.0), (1, 1.0), (3, 1.0))))  // [1.0 , 1.0 , 0   , 1.0 , 0   , 0  ]
+)).toDF("id", "features")
+
+// Trains a k-means model.
+val kmeans = new KMeans().setK(3).setSeed(1L)
+
+val model = kmeans.fit(dataset)
+
+// Make predictions
+val predictions = model.transform(dataset)
+
+// Evaluate clustering by computing Silhouette score
+val evaluator = new ClusteringEvaluator()
+
+val silhouette = evaluator.evaluate(predictions)
+println(s"Silhouette with squared euclidean distance = $silhouette")
+
+// Shows the result.
+println("Cluster Centers: ")
+model.clusterCenters.foreach(println)
+
+predictions.show()
+</code></pre></div></div>
+
+<p>印出結果 :</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Silhouette with squared euclidean distance = 0.11111111111111134
+Cluster Centers: 
+[0.3333333333333333,0.6666666666666666,0.3333333333333333,1.0,0.0,0.6666666666666666]
+[0.3333333333333333,0.3333333333333333,0.6666666666666666,0.6666666666666666,1.0,0.0]
+[0.5,1.0,1.0,0.0,0.5,0.0]
++---+--------------------+----------+
+| id|            features|prediction|
++---+--------------------+----------+
+|  0|(6,[0,1,2],[1.0,1...|         2|
+|  1|(6,[2,3,4],[1.0,1...|         1|
+|  2|(6,[0,2,4],[1.0,1...|         1|
+|  3|(6,[1,3,4],[1.0,1...|         1|
+|  4|(6,[1,3,5],[1.0,1...|         0|
+|  5|(6,[2,3,5],[1.0,1...|         0|
+|  6|(6,[1,2,4],[1.0,1...|         2|
+|  7|(6,[0,1,3],[1.0,1...|         0|
++---+--------------------+----------+
+
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val outputPersons = 100
+//10 count
+val testpersonSeed = "hash:9ef58b79-8aab-4e5b-bcf5-b8974991e599,hash:cd5d9c99-393b-4814-8f62-9aebcc31bd21,hash:a0c95fa1-fc44-44ff-b4ae-c407cd53f292,hash:a2ada011-53a1-4d27-9885-dbfd2b0cb969,hash:ce1283e2-a72a-4377-86f5-c03774f00641,hash:4241c150-cde7-4cb7-9306-10946cdbb639,hash:be9fcd09-a1f5-467a-9065-82a89c86af83,hash:48f3d940-f0bd-4300-9f8a-33c29c56ace6,hash:35dc9c3d-f04d-4b27-a5ce-8180ea9705ec,hash:57258600-55c5-4d94-8d15-8f754d8d14bc"
+
+val inputIdList = testpersonSeed
+val spark = SparkSession.builder()
+      .appName("LookLikePersonLSH")
+      .master("local[*]")
+      .config("spark.cassandra.connection.host", "192.168.6.31,192.168.6.32,192.168.6.33")
+      .config("spark.cassandra.auth.username", "miuser")
+      .config("spark.cassandra.auth.password", "mimimi123")
+      .getOrCreate()
+
+import spark.implicits._
+
+val allPersons = spark.sparkContext.cassandraTable[(String,Seq[Double])]("miks2","testpersonlabelvector")
+  .select("id","labelvector").keyBy[Tuple1[String]]("id")
+
+val seedPersons = spark.sparkContext.cassandraTable[(String,Seq[Double])]("miks2","testpersonlabelvector")
+  .select("id","labelvector").where("id in ? " , testpersonSeed.split(",").toSeq).keyBy[Tuple1[String]]("id")
+
+val tranDataSet = seedPersons.map(r =&gt; ( r._2._1 ,Vectors.dense(r._2._2.toArray))).toDF("id", "features")
+
+val kmeans = new KMeans().setK(5).setSeed(5L)
+val model = kmeans.fit(tranDataSet)
+
+val seedKmodel = spark.sparkContext.parallelize(model.clusterCenters)
+val resultIdList = seedKmodel.cartesian(allPersons)
+  .map(ds =&gt; (ds._2._1._1 , LabelVectorUtil().cosineSimilarity(ds._1.toArray , ds._2._2._2)))
+  .sortBy(_._2 , false).take(outputPersons)
+
+spark.sparkContext.parallelize(resultIdList).saveAsTextFile("/enrich/tempResult/KmeansLookLikePerson")
+</code></pre></div></div>
+
+
+      </article>
+      <hr>
+    </div>
+  </div>
+</div>
+    </div>
+
+    
+    <div id="top" data-toggle="tooltip" data-placement="left" title="back to top">
+      <a href="javascript:;">
+        <div class="arrow"></div>
+        <div class="stick"></div>
+      </a>
+    </div>
+
+    <footer class="">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12">
+        <a href="mailto:"><span class="glyphicon glyphicon-envelope"></span> </a>
+          <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span><a href="_posts/spark/2019-02-25-spark-kmeans.md">View source</a></span>
+          <span class="point"> · </span>
+		      <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span>&copy; 2019 Daniel</span>
+      </div>
+    </div>
+  </div>
+</footer>
+  
+  </body>
+</html>

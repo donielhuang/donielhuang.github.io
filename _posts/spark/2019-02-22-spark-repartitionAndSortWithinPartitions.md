@@ -67,6 +67,70 @@ after : 1
 accum value is 3
 ```
 
+### 根據 RDD 的 Key 做 partition
+
+假設有下列資料，希望根據資料的 key 來分成各自的 spark partition．
+
+```
+val datas = Seq(
+  (1,Seq((1,2),(1,1))) ,
+  (2,Seq((2,3),(2,2))) ,
+  (3,Seq((4,5),(3,3))) ,
+  (1,Seq((6,7),(4,4)))
+)
+```
+
+先來看透過 spark parallelize 會怎麼分 partition．
+
+```
+val drdd = spark.sparkContext.parallelize(datas)
+println("a-> " + drdd.getNumPartitions)
+val taccum = spark.sparkContext.longAccumulator("My Accumulator")
+drdd.foreachPartition(it => {
+  it.foreach(t => {
+    taccum.add(t._1)
+    println(taccum.value + " ; " + t._2.mkString(","))
+  })
+})
+```
+總共會分成 8 個 partition，但並不是我們要的．
+
+```
+a-> 8
+1 ; (6,7),(4,4)
+1 ; (1,2),(1,1)
+2 ; (2,3),(2,2)
+3 ; (4,5),(3,3)
+```
+
+所以透過 groupByKey 再 partitionBy 根據 key 的人數重新 partition．  
+
+```
+val keycount = drdd.groupByKey.count().toInt
+val repartitionRdd = drdd.groupByKey.partitionBy(new HashPartitioner(keycount))
+```
+
+
+```
+println("keycount : " + keycount)
+println("b-> " + repartitionRdd.getNumPartitions)
+val accum = spark.sparkContext.longAccumulator("My Accumulator")
+repartitionRdd.foreachPartition(it => {
+  it.foreach(t => {
+    accum.add(t._1)
+    println(accum.value + " ; " + t._2.mkString(","))
+  })
+})
+```
+結果會是  
+
+```
+keycount : 3
+b-> 3
+1 ; List((1,2), (1,1)),List((6,7), (4,4))
+2 ; List((2,3), (2,2))
+3 ; List((4,5), (3,3))
+```
 
 
 

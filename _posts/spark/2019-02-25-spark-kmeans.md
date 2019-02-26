@@ -6,6 +6,8 @@ categories: spark
 
 ### spark k-means
 
+Seed 代表一開始初始化 random 的點．K 表示 cluster 的數量．setInitMode 目前支持 random 和 `k-means||`，`k-means||` 是 k-means++．
+
 ```
 val spark = SparkSession.builder().master("local[*]").appName("testtest").config("spark.cassandra.connection.host", "192.168.6.31").getOrCreate()
 val dataset = spark.createDataFrame(Seq(
@@ -62,10 +64,11 @@ Cluster Centers:
 +---+--------------------+----------+
 
 ```
+實際在餵給 KMeans 的資料集時，會需要一個 features 的欄位，可透過 Vectors.dense 來將 Array[Double] 轉成 Vector．
 
-
-
-
+```
+seedPersons.map(r => ( r._2._1 ,Vectors.dense(r._2._2.toArray))).toDF("id", "features")
+```
 
 ```
 val outputPersons = 100

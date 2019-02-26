@@ -5,4 +5,4 @@ comments: true
 permalink: /about/
 ---
 
-This is About Page.
+more blogs can reference [daniel's blog](https://weihuangdev.github.io/)

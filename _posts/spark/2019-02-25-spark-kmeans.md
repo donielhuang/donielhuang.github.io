@@ -105,5 +105,24 @@ val resultIdList = seedKmodel.cartesian(allPersons)
 spark.sparkContext.parallelize(resultIdList).saveAsTextFile("/enrich/tempResult/KmeansLookLikePerson")
 ```
 
+跑 Kmeans 如果遇到下列錯誤時，可能因為丟給 KMeans 裡的向量的維度有的有不一樣，可以先檢查 data 的部分．
+
+```
+User class threw exception: org.apache.spark.SparkException: Job aborted due to stage failure: Task 0 in stage 3.0 failed 4 times, most recent failure: Lost task 0.3 in stage 3.0 (TID 7, dmpn1, executor 5): java.lang.IllegalArgumentException: requirement failed
+at scala.Predef$.require(Predef.scala:212)
+at org.apache.spark.mllib.util.MLUtils$.fastSquaredDistance(MLUtils.scala:507)
+at org.apache.spark.mllib.clustering.KMeans$.fastSquaredDistance(KMeans.scala:590)
+at org.apache.spark.mllib.clustering.KMeans$$anonfun$findClosest$1.apply(KMeans.scala:564)
+at org.apache.spark.mllib.clustering.KMeans$$anonfun$findClosest$1.apply(KMeans.scala:558)
+at scala.collection.IndexedSeqOptimized$class.foreach(IndexedSeqOptimized.scala:33)
+at scala.collection.mutable.ArrayOps$ofRef.foreach(ArrayOps.scala:186)
+at org.apache.spark.mllib.clustering.KMeans$.findClosest(KMeans.scala:558)
+at org.apache.spark.mllib.clustering.KMeans$$anonfun$6$$anonfun$apply$2.apply(KMeans.scala:284)
+at org.apache.spark.mllib.clustering.KMeans$$anonfun$6$$anonfun$apply$2.apply(KMeans.scala:283)
+at scala.collection.Iterator$class.foreach(Iterator.scala:893)
+...
+```
+
+
 
 

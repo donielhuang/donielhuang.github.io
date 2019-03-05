@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Akka_http Spark</title>
+	<meta name="description" content="akka-http call spark">
+	
+	<link rel="canonical" href="http://localhost:4000/akka/2019/03/04/akka_http-spark.html">
+	<link rel="alternate" type="application/rss+xml" title="Daniel's Blog" href="http://localhost:4000/feed.xml" />
+	
+	<!-- <link rel="stylesheet" href="/css/main.css"> -->
+    
+    <link rel="stylesheet" type="text/css" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/index.css">
+	<script type="text/javascript" src="/static/js/jquery-1.11.1.min.js"></script>
+	<script type="text/javascript" src="/static/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/css/monokai_sublime.min.css">
+	<script type="text/javascript" src="/static/js/highlight.min.js"></script>
+
+    <!--
+    <link rel="stylesheet" type="text/css" href="http://apps.bdimg.com/libs/bootstrap/3.3.0/css/bootstrap.min.css">
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/jquery/2.1.1/jquery.min.js"></script>
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="http://apps.bdimg.com/libs/highlight.js/8.4/styles/monokai_sublime.min.css">
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/highlight.js/8.4/highlight.min.js"></script>
+    -->
+    
+	<script type="text/javascript" src="/static/js/index.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+ <!--  <body data-spy="scroll" data-target="#myAffix"> -->
+  <body>
+
+    <header>
+
+<!-- navbar -->
+  <nav class="navbar navbar-inverse">
+  <div class="container">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Daniel's Blog</a>
+      <p class="navbar-text"></p>
+    </div>
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+      <ul class="nav navbar-nav navbar-right">
+
+        
+          <li>
+        
+        <a href="/">Home</a></li>
+
+        
+          
+            
+              <li>
+            
+            <a href="/projects/"><span class="glyphicon "></span> Projects</a></li>
+          
+        
+          
+            
+              <li>
+            
+            <a href="/about/"><span class="glyphicon "></span> About</a></li>
+          
+        
+          
+        
+          
+        
+      </ul>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container-fluid -->
+</nav>
+
+</header>
+
+    <div id="main" class="container main">
+      <div class="row">
+  <div id="myArticle" class="col-sm-9">
+    <div class="post-area post">
+      <header>
+        <h1>Akka_http Spark</h1>
+        <p>Mar 4, 2019</p>
+      </header>
+      <hr>
+      <article>
+        <h3 id="akka-http-call-spark">akka-http call spark</h3>
+
+<p>目的是利用 akka http 建立一個 web service 給 client 端呼叫，收到 request 後執行啟動 spark job．<br />
+由於 spark job 是 batch job，所以執行結果可能無法即時傳回給前端，所以可以利用一個 key 存在 cassandra，讓前端查詢該 job 執行的狀況．</p>
+
+<p><img src="/static/img/akka/akkahttp_1.jpg" alt="akkahttp_1.jpg" height="400px" width="600px" /></p>
+
+<p>建立 cassandra table</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>CREATE TABLE miks2.jobList(
+jobId text,
+sparkJobId text,
+status text,
+PRIMARY KEY(jobId)
+) ;
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">package</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">enrich</span><span class="p">.</span><span class="n">rest</span>
+
+<span class="n">import</span> <span class="n">akka</span><span class="p">.</span><span class="n">actor</span><span class="p">.</span><span class="n">ActorSystem</span>
+<span class="n">import</span> <span class="n">akka</span><span class="p">.</span><span class="n">http</span><span class="p">.</span><span class="n">scaladsl</span><span class="p">.</span><span class="n">Http</span>
+<span class="n">import</span> <span class="n">akka</span><span class="p">.</span><span class="n">http</span><span class="p">.</span><span class="n">scaladsl</span><span class="p">.</span><span class="n">marshallers</span><span class="p">.</span><span class="n">sprayjson</span><span class="p">.</span><span class="n">SprayJsonSupport</span>
+<span class="n">import</span> <span class="n">akka</span><span class="p">.</span><span class="n">http</span><span class="p">.</span><span class="n">scaladsl</span><span class="p">.</span><span class="k">model</span><span class="p">.</span><span class="n">_</span>
+<span class="n">import</span> <span class="n">akka</span><span class="p">.</span><span class="n">http</span><span class="p">.</span><span class="n">scaladsl</span><span class="p">.</span><span class="n">server</span><span class="p">.</span><span class="n">Directives</span><span class="p">.</span><span class="n">_</span>
+<span class="n">import</span> <span class="n">akka</span><span class="p">.</span><span class="n">stream</span><span class="p">.</span><span class="n">ActorMaterializer</span>
+<span class="n">import</span> <span class="n">org</span><span class="p">.</span><span class="n">apache</span><span class="p">.</span><span class="n">spark</span><span class="p">.</span><span class="n">launcher</span><span class="p">.</span><span class="n">SparkLauncher</span>
+<span class="n">import</span> <span class="n">org</span><span class="p">.</span><span class="n">apache</span><span class="p">.</span><span class="n">spark</span><span class="p">.</span><span class="n">sql</span><span class="p">.</span><span class="n">SparkSession</span>
+<span class="n">import</span> <span class="n">spray</span><span class="p">.</span><span class="n">json</span><span class="p">.</span><span class="n">_</span>
+
+<span class="n">import</span> <span class="n">scala</span><span class="p">.</span><span class="n">io</span><span class="p">.</span><span class="n">StdIn</span>
+
+<span class="n">final</span> <span class="k">case</span> <span class="n">class</span> <span class="n">IdList</span><span class="p">(</span><span class="n">ids</span><span class="p">:</span> <span class="k">List</span><span class="p">[</span><span class="k">String</span><span class="p">])</span>
+<span class="n">final</span> <span class="k">case</span> <span class="n">class</span> <span class="n">LooklikeInfo</span><span class="p">(</span><span class="n">likePerson</span> <span class="p">:</span><span class="k">String</span> <span class="p">,</span> <span class="n">kcluster</span> <span class="p">:</span><span class="k">String</span> <span class="p">,</span> <span class="n">ids</span><span class="p">:</span> <span class="k">List</span><span class="p">[</span><span class="k">String</span><span class="p">])</span>
+
+<span class="n">trait</span> <span class="n">JsonSupport</span> <span class="n">extends</span> <span class="n">SprayJsonSupport</span> <span class="k">with</span> <span class="n">DefaultJsonProtocol</span> <span class="p">{</span>
+  <span class="n">implicit</span> <span class="n">val</span> <span class="n">looklikeInfoFormat</span> <span class="p">=</span> <span class="n">jsonFormat3</span><span class="p">(</span><span class="n">LooklikeInfo</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="p">//</span> <span class="err">要</span> <span class="n">extends</span> <span class="n">JsonSupport</span>
+<span class="n">object</span> <span class="n">SimpleWebServer</span> <span class="n">extends</span> <span class="n">JsonSupport</span> <span class="p">{</span>
+
+  <span class="n">def</span> <span class="n">main</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="k">Array</span><span class="p">[</span><span class="k">String</span><span class="p">]):</span> <span class="n">Unit</span> <span class="p">=</span> <span class="p">{</span>
+
+    <span class="n">implicit</span> <span class="n">val</span> <span class="nf">system</span> <span class="p">=</span> <span class="n">ActorSystem</span><span class="p">(</span><span class="s2">"my-system"</span><span class="p">)</span>
+    <span class="n">implicit</span> <span class="n">val</span> <span class="n">materializer</span> <span class="p">=</span> <span class="n">ActorMaterializer</span><span class="p">()</span>
+    <span class="n">implicit</span> <span class="n">val</span> <span class="n">executionContext</span> <span class="p">=</span> <span class="nf">system</span><span class="p">.</span><span class="n">dispatcher</span>
+
+    <span class="p">/*</span>
+    <span class="p">*</span> <span class="n">http</span><span class="p">://</span><span class="m">192.168.6.31</span><span class="p">:</span><span class="m">8080</span><span class="p">/</span><span class="n">lookLikePersonWithFilePath</span><span class="p">?</span><span class="n">likePerson</span><span class="p">=</span><span class="m">100</span><span class="p">&amp;</span><span class="n">hdfsCsvFile</span><span class="p">=/</span><span class="n">enrich</span><span class="p">/</span><span class="n">looklike</span><span class="p">/</span><span class="n">idlist</span><span class="p">/</span><span class="n">idlist_5</span><span class="p">.</span><span class="n">csv</span><span class="p">&amp;</span><span class="n">kcluster</span><span class="p">=</span><span class="m">5</span>
+    <span class="p">*</span> <span class="p">*/</span>
+    <span class="n">val</span> <span class="n">helloRoute</span> <span class="p">=</span> <span class="n">path</span><span class="p">(</span><span class="s2">"lookLikePersonWithFilePath"</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">get</span> <span class="p">{</span>
+        <span class="p">//</span> <span class="err">設定</span> <span class="n">request</span> <span class="err">接收的參數</span>
+        <span class="k">parameters</span><span class="p">(</span><span class="s1">'likePerson.as[String],'</span><span class="n">hdfsCsvFile</span><span class="p">.</span><span class="k">as</span><span class="p">[</span><span class="k">String</span><span class="p">],</span><span class="s1">'kcluster.as[String] ) {
+          (likePerson , hdfsCsvFile , kcluster) =&gt;
+            val id = java.util.UUID.randomUUID().toString
+            /*
+            * spark-submit --class ght.mi.ml.KmeansLookLikePerson --master yarn --deploy-mode cluster --driver-memory 4g --executor-memory 20g --executor-cores 6 --num-executors 5 enrich-5.0.jar 1000
+            * */
+            val sparkLauncher = new SparkLauncher()
+              .setAppResource("/home/miuser/enrich/genData/enrich-5.0.jar")
+              .setMainClass("ght.mi.ml.KmeansLookLikePerson")
+              .setMaster("yarn")
+              .setDeployMode("cluster")
+              .setConf("spark.driver.memory", "4g")
+              .setConf("spark.executor.memory", "20g")
+              .setConf("spark.executor.instances", "5")
+              .setConf("spark.executor.cores", "6")
+              .setConf("spark.driver.allowMultipleContexts", "true")
+              .addAppArgs(likePerson , hdfsCsvFile , kcluster , id)
+              .launch()
+
+            //會等 job 執行完才會 complete
+            //sparkLauncher.waitFor()
+
+            complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, id))
+        }
+      }
+    }
+
+    val jsonRoute = post {
+      path("lookLikePerson") {
+        // 使用 json 格式的方式接收 request，再取出 json 的值
+        entity(as[LooklikeInfo]) { looklikeInfo =&gt;
+          val id = java.util.UUID.randomUUID().toString
+          val ids = looklikeInfo.ids.mkString(",")
+          val likePerson = looklikeInfo.likePerson
+          val kcluster = looklikeInfo.kcluster
+          /*
+           * spark-submit --class ght.mi.ml.KmeansLookLikePerson --master yarn --deploy-mode cluster --driver-memory 4g --executor-memory 20g --executor-cores 6 --num-executors 5 enrich-5.0.jar 1000
+           * */
+          val sparkLauncher = new SparkLauncher()
+            .setAppResource("/home/miuser/enrich/genData/enrich-5.0.jar")
+            .setMainClass("ght.mi.ml.KmeansLookLikePersonWithJson")
+            .setMaster("yarn")
+            .setDeployMode("cluster")
+            .setConf("spark.driver.memory", "4g")
+            .setConf("spark.executor.memory", "20g")
+            .setConf("spark.executor.instances", "5")
+            .setConf("spark.executor.cores", "6")
+            .setConf("spark.driver.allowMultipleContexts", "true")
+            .addAppArgs(likePerson, ids, kcluster, id)
+            .launch()
+
+          complete(HttpEntity(ContentTypes.`application/json`, "{\"jobid\" : " + id + " }"))
+        }
+      }
+    }
+
+    /*
+    * http://192.168.6.31:8080/getJobStatus?jobId=42252e51-ded4-461e-8800-db3bcc04ed35
+    * */
+    val jobStatusRoute = path("getJobStatus") {
+      get {
+        parameters('</span><span class="n">jobId</span><span class="p">.</span><span class="k">as</span><span class="p">[</span><span class="k">String</span><span class="p">])</span> <span class="p">{</span>
+          <span class="p">(</span><span class="n">jobId</span><span class="p">)</span> <span class="p">=&gt;</span>
+
+            <span class="n">val</span> <span class="n">spark</span> <span class="p">=</span> <span class="n">SparkSession</span><span class="p">.</span><span class="n">builder</span><span class="p">()</span>
+              <span class="p">.</span><span class="n">appName</span><span class="p">(</span><span class="s2">"LookLikePerson"</span><span class="p">)</span>
+              <span class="p">.</span><span class="n">master</span><span class="p">(</span><span class="s2">"local[*]"</span><span class="p">)</span>
+              <span class="p">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.cassandra.connection.host"</span><span class="p">,</span> <span class="s2">"192.168.6.31,192.168.6.32,192.168.6.33"</span><span class="p">)</span>
+              <span class="p">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.cassandra.auth.username"</span><span class="p">,</span> <span class="s2">"miuser"</span><span class="p">)</span>
+              <span class="p">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.cassandra.auth.password"</span><span class="p">,</span> <span class="s2">"mimimi123"</span><span class="p">)</span>
+              <span class="p">.</span><span class="n">getOrCreate</span><span class="p">()</span>
+
+            <span class="n">import</span> <span class="n">com</span><span class="p">.</span><span class="n">datastax</span><span class="p">.</span><span class="n">spark</span><span class="p">.</span><span class="n">connector</span><span class="p">.</span><span class="n">_</span>
+            <span class="n">val</span> <span class="n">jobStatus</span> <span class="p">=</span> <span class="n">spark</span><span class="p">.</span><span class="n">sparkContext</span><span class="p">.</span><span class="n">cassandraTable</span><span class="p">[(</span><span class="k">String</span><span class="p">,</span><span class="k">String</span><span class="p">,</span><span class="k">String</span><span class="p">)](</span><span class="s2">"miks2"</span><span class="p">,</span><span class="s2">"joblist"</span><span class="p">)</span>
+              <span class="p">.</span><span class="n">select</span><span class="p">(</span><span class="s2">"jobid"</span><span class="p">,</span><span class="s2">"sparkjobid"</span><span class="p">,</span><span class="s2">"status"</span><span class="p">).</span><span class="n">where</span><span class="p">(</span><span class="s2">"jobid = ? "</span> <span class="p">,</span> <span class="n">jobId</span><span class="p">).</span><span class="n">keyBy</span><span class="p">[</span><span class="n">Tuple1</span><span class="p">[</span><span class="k">String</span><span class="p">]](</span><span class="s2">"jobid"</span><span class="p">)</span>
+
+            <span class="n">complete</span><span class="p">(</span><span class="n">HttpEntity</span><span class="p">(</span><span class="n">ContentTypes</span><span class="p">.`</span><span class="n">text</span><span class="p">/</span><span class="n">plain</span><span class="p">(</span><span class="n">UTF</span><span class="p">-</span><span class="m">8</span><span class="p">)`,</span> <span class="n">jobStatus</span><span class="p">.</span><span class="n">first</span><span class="p">().</span><span class="n">_2</span><span class="p">.</span><span class="n">_3</span><span class="p">))</span>
+        <span class="p">}</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="n">val</span> <span class="n">route</span> <span class="p">=</span> <span class="p">{</span>
+      <span class="n">helloRoute</span> <span class="p">~</span> <span class="n">jsonRoute</span> <span class="p">~</span> <span class="n">jobStatusRoute</span>
+    <span class="p">}</span>
+
+    <span class="n">val</span> <span class="n">bindingFuture</span> <span class="p">=</span> <span class="n">Http</span><span class="p">().</span><span class="n">bindAndHandle</span><span class="p">(</span><span class="n">route</span><span class="p">,</span> <span class="s2">"192.168.6.31"</span><span class="p">,</span> <span class="m">8080</span><span class="p">)</span>
+
+    <span class="n">println</span><span class="p">(</span><span class="n">s</span><span class="s2">"Server online at http://localhost:8080/</span><span class="se">\n</span><span class="s2">Press RETURN to stop..."</span><span class="p">)</span>
+    <span class="n">StdIn</span><span class="p">.</span><span class="n">readLine</span><span class="p">()</span> <span class="p">//</span> <span class="n">let</span> <span class="n">it</span> <span class="nf">run</span> <span class="k">until</span> <span class="n">user</span> <span class="n">presses</span> <span class="n">return</span>
+    <span class="n">bindingFuture</span>
+      <span class="p">.</span><span class="n">flatMap</span><span class="p">(</span><span class="n">_</span><span class="p">.</span><span class="n">unbind</span><span class="p">())</span> <span class="p">//</span> <span class="n">trigger</span> <span class="n">unbinding</span> <span class="k">from</span> <span class="n">the</span> <span class="n">port</span>
+      <span class="p">.</span><span class="n">onComplete</span><span class="p">(</span><span class="n">_</span> <span class="p">=&gt;</span> <span class="nf">system</span><span class="p">.</span><span class="n">terminate</span><span class="p">())</span> <span class="p">//</span> <span class="k">and</span> <span class="n">shutdown</span> <span class="n">when</span> <span class="n">done</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>build.sbt :</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>name := "enrich-rest"
+
+version := "0.1"
+
+scalaVersion := "2.11.12"
+
+val akkaVersion = "2.5.19"
+val akkaHttpVersion = "10.1.7"
+val sparkVersion = "2.3.1"
+
+libraryDependencies ++= Seq(
+  "org.apache.spark"       %%  "spark-sql"                   % sparkVersion ,
+  "org.apache.spark"       %%  "spark-core"                  % sparkVersion ,
+  "com.typesafe.akka"      %%  "akka-http"                   % akkaHttpVersion,
+  "com.typesafe.akka"      %%  "akka-stream"                 % akkaVersion,
+  "com.typesafe.akka"      %%  "akka-http-spray-json"        % "10.1.7",
+  "com.datastax.spark"     %%  "spark-cassandra-connector"   % "2.3.2",
+  "com.typesafe.akka"      %%  "akka-http-testkit"           % akkaHttpVersion % Test,
+  "com.typesafe.akka"      %%  "akka-stream-testkit"         % akkaVersion     % Test
+)
+
+parallelExecution in Test := false
+
+assemblyJarName in assembly := name.value + ".jar"
+
+test in assembly := {}
+
+assemblyMergeStrategy in assembly := {
+  case PathList("META-INF", xs @ _*) =&gt; MergeStrategy.discard
+  case PathList("reference.conf") =&gt; MergeStrategy.concat
+  case x =&gt; MergeStrategy.first
+}
+
+</code></pre></div></div>
+
+
+      </article>
+      <hr>
+    </div>
+  </div>
+</div>
+    </div>
+
+    
+    <div id="top" data-toggle="tooltip" data-placement="left" title="back to top">
+      <a href="javascript:;">
+        <div class="arrow"></div>
+        <div class="stick"></div>
+      </a>
+    </div>
+
+    <footer class="">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12">
+        <a href="mailto:"><span class="glyphicon glyphicon-envelope"></span> </a>
+          <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span><a href="_posts/akka/2019-03-04-akka_http-spark.md">View source</a></span>
+          <span class="point"> · </span>
+		      <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span>&copy; 2019 Daniel</span>
+      </div>
+    </div>
+  </div>
+</footer>
+  
+  </body>
+</html>

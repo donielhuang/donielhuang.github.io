@@ -210,6 +210,160 @@ at scala.collection.Iterator$class.foreach(Iterator.scala:893)
 ...
 </code></pre></div></div>
 
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">package</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">ml</span>
+
+<span class="n">import</span> <span class="n">org</span><span class="p">.</span><span class="n">apache</span><span class="p">.</span><span class="n">spark</span><span class="p">.</span><span class="n">sql</span><span class="p">.</span><span class="n">SparkSession</span>
+<span class="n">import</span> <span class="n">com</span><span class="p">.</span><span class="n">datastax</span><span class="p">.</span><span class="n">spark</span><span class="p">.</span><span class="n">connector</span><span class="p">.</span><span class="n">_</span>
+<span class="n">import</span> <span class="n">org</span><span class="p">.</span><span class="n">apache</span><span class="p">.</span><span class="n">spark</span><span class="p">.</span><span class="n">ml</span><span class="p">.</span><span class="n">clustering</span><span class="p">.</span><span class="n">KMeans</span>
+<span class="n">import</span> <span class="n">org</span><span class="p">.</span><span class="n">apache</span><span class="p">.</span><span class="n">spark</span><span class="p">.</span><span class="n">ml</span><span class="p">.</span><span class="n">linalg</span><span class="p">.{</span><span class="n">DenseVector</span><span class="p">,</span> <span class="n">Vectors</span><span class="p">}</span>
+<span class="n">import</span> <span class="n">org</span><span class="p">.</span><span class="n">apache</span><span class="p">.</span><span class="n">spark</span><span class="p">.</span><span class="n">sql</span><span class="p">.</span><span class="n">types</span><span class="p">.{</span><span class="n">StringType</span><span class="p">,</span> <span class="n">StructField</span><span class="p">,</span> <span class="n">StructType</span><span class="p">}</span>
+
+<span class="n">object</span> <span class="n">KmeansLookLikePerson</span> <span class="p">{</span>
+
+  <span class="n">def</span> <span class="n">main</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="k">Array</span><span class="p">[</span><span class="k">String</span><span class="p">]):</span> <span class="n">Unit</span> <span class="p">=</span> <span class="p">{</span>
+
+    <span class="n">val</span> <span class="n">outputPersons</span> <span class="p">=</span> <span class="n">args</span><span class="p">(</span><span class="m">0</span><span class="p">).</span><span class="n">toInt</span>
+    <span class="n">val</span> <span class="n">hdfsCsvFile</span> <span class="p">=</span> <span class="n">args</span><span class="p">(</span><span class="m">1</span><span class="p">)</span>
+    <span class="n">val</span> <span class="n">kcluster</span> <span class="p">=</span> <span class="n">args</span><span class="p">(</span><span class="m">2</span><span class="p">).</span><span class="n">toInt</span>
+    <span class="n">val</span> <span class="n">jobkey</span> <span class="p">=</span> <span class="n">args</span><span class="p">(</span><span class="m">3</span><span class="p">)</span>
+
+    <span class="p">//</span><span class="n">val</span> <span class="n">testpersonSeed</span> <span class="p">=</span> <span class="s2">"hash:9ef58b79-8aab-4e5b-bcf5-b8974991e599,hash:cd5d9c99-393b-4814-8f62-9aebcc31bd21,hash:a0c95fa1-fc44-44ff-b4ae-c407cd53f292,hash:a2ada011-53a1-4d27-9885-dbfd2b0cb969,hash:ce1283e2-a72a-4377-86f5-c03774f00641,hash:4241c150-cde7-4cb7-9306-10946cdbb639,hash:be9fcd09-a1f5-467a-9065-82a89c86af83,hash:48f3d940-f0bd-4300-9f8a-33c29c56ace6,hash:35dc9c3d-f04d-4b27-a5ce-8180ea9705ec,hash:57258600-55c5-4d94-8d15-8f754d8d14bc"</span>
+
+    <span class="n">val</span> <span class="n">spark</span> <span class="p">=</span> <span class="n">SparkSession</span><span class="p">.</span><span class="n">builder</span><span class="p">()</span>
+      <span class="p">.</span><span class="n">appName</span><span class="p">(</span><span class="s2">"KmeansLookLikePerson"</span><span class="p">)</span>
+      <span class="p">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.cassandra.connection.host"</span><span class="p">,</span> <span class="s2">"192.168.6.31,192.168.6.32,192.168.6.33"</span><span class="p">)</span>
+      <span class="p">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.cassandra.auth.username"</span><span class="p">,</span> <span class="s2">"miuser"</span><span class="p">)</span>
+      <span class="p">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.cassandra.auth.password"</span><span class="p">,</span> <span class="s2">"mimimi123"</span><span class="p">)</span>
+      <span class="p">.</span><span class="n">getOrCreate</span><span class="p">()</span>
+
+    <span class="n">val</span> <span class="n">sparkId</span> <span class="p">=</span> <span class="n">spark</span><span class="p">.</span><span class="n">sparkContext</span><span class="p">.</span><span class="n">applicationId</span>
+    <span class="n">spark</span><span class="p">.</span><span class="n">sparkContext</span><span class="p">.</span><span class="n">parallelize</span><span class="p">(</span><span class="n">Seq</span><span class="p">((</span><span class="n">jobkey</span> <span class="p">,</span> <span class="n">sparkId</span> <span class="p">,</span> <span class="s2">"0"</span><span class="p">))).</span><span class="n">saveToCassandra</span><span class="p">(</span><span class="s2">"miks2"</span> <span class="p">,</span> <span class="s2">"joblist"</span><span class="p">)</span>
+
+    <span class="n">import</span> <span class="n">spark</span><span class="p">.</span><span class="n">implicits</span><span class="p">.</span><span class="n">_</span>
+
+    <span class="n">val</span> <span class="n">customSchema</span> <span class="p">=</span> <span class="n">StructType</span><span class="p">(</span><span class="k">Array</span><span class="p">(</span><span class="n">StructField</span><span class="p">(</span><span class="s2">"id"</span><span class="p">,</span> <span class="n">StringType</span><span class="p">,</span> <span class="nb">true</span><span class="p">)))</span>
+    <span class="p">//</span> <span class="n">val</span> <span class="n">df</span> <span class="p">=</span> <span class="n">spark</span><span class="p">.</span><span class="n">sqlContext</span><span class="p">.</span><span class="nb">read</span><span class="p">.</span><span class="n">format</span><span class="p">(</span><span class="s2">"com.databricks.spark.csv"</span><span class="p">).</span><span class="n">schema</span><span class="p">(</span><span class="n">customSchema</span><span class="p">).</span><span class="nf">load</span><span class="p">(</span><span class="s2">"/enrich/looklike/idlist/idlist.csv"</span><span class="p">)</span>
+    <span class="n">val</span> <span class="n">df</span> <span class="p">=</span> <span class="n">spark</span><span class="p">.</span><span class="n">sqlContext</span><span class="p">.</span><span class="nb">read</span><span class="p">.</span><span class="n">format</span><span class="p">(</span><span class="s2">"com.databricks.spark.csv"</span><span class="p">).</span><span class="n">schema</span><span class="p">(</span><span class="n">customSchema</span><span class="p">).</span><span class="nf">load</span><span class="p">(</span><span class="n">hdfsCsvFile</span><span class="p">)</span>
+
+    <span class="n">val</span> <span class="n">testpersonSeed</span> <span class="p">=</span> <span class="n">df</span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="n">r</span> <span class="p">=&gt;</span> <span class="n">r</span><span class="p">.</span><span class="n">getAs</span><span class="p">[</span><span class="k">String</span><span class="p">](</span><span class="s2">"id"</span><span class="p">)).</span><span class="n">collect</span><span class="p">().</span><span class="n">mkString</span><span class="p">(</span><span class="s2">","</span><span class="p">)</span>
+
+    <span class="n">val</span> <span class="n">allPersons</span> <span class="p">=</span> <span class="n">spark</span><span class="p">.</span><span class="n">sparkContext</span><span class="p">.</span><span class="n">cassandraTable</span><span class="p">[(</span><span class="k">String</span><span class="p">,</span><span class="n">Seq</span><span class="p">[</span><span class="n">Double</span><span class="p">])](</span><span class="s2">"miks2"</span><span class="p">,</span><span class="s2">"testpersonlabelvector"</span><span class="p">)</span>
+      <span class="p">.</span><span class="n">select</span><span class="p">(</span><span class="s2">"id"</span><span class="p">,</span><span class="s2">"labelvector"</span><span class="p">).</span><span class="n">keyBy</span><span class="p">[</span><span class="n">Tuple1</span><span class="p">[</span><span class="k">String</span><span class="p">]](</span><span class="s2">"id"</span><span class="p">)</span>
+
+    <span class="n">val</span> <span class="n">seedPersons</span> <span class="p">=</span> <span class="n">spark</span><span class="p">.</span><span class="n">sparkContext</span><span class="p">.</span><span class="n">cassandraTable</span><span class="p">[(</span><span class="k">String</span><span class="p">,</span><span class="n">Seq</span><span class="p">[</span><span class="n">Double</span><span class="p">])](</span><span class="s2">"miks2"</span><span class="p">,</span><span class="s2">"testpersonlabelvector"</span><span class="p">)</span>
+      <span class="p">.</span><span class="n">select</span><span class="p">(</span><span class="s2">"id"</span><span class="p">,</span><span class="s2">"labelvector"</span><span class="p">).</span><span class="n">where</span><span class="p">(</span><span class="s2">"id in ? "</span> <span class="p">,</span> <span class="n">testpersonSeed</span><span class="p">.</span><span class="n">split</span><span class="p">(</span><span class="s2">","</span><span class="p">).</span><span class="n">toSeq</span><span class="p">).</span><span class="n">keyBy</span><span class="p">[</span><span class="n">Tuple1</span><span class="p">[</span><span class="k">String</span><span class="p">]](</span><span class="s2">"id"</span><span class="p">)</span>
+
+    <span class="n">val</span> <span class="n">tranDataSet</span> <span class="p">=</span> <span class="n">seedPersons</span><span class="p">.</span><span class="n">filter</span><span class="p">(</span><span class="n">_</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">size</span> <span class="p">==</span> <span class="m">254</span><span class="p">).</span><span class="n">map</span><span class="p">(</span><span class="n">r</span> <span class="p">=&gt;</span> <span class="p">(</span> <span class="n">r</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">_1</span> <span class="p">,</span><span class="n">Vectors</span><span class="p">.</span><span class="n">dense</span><span class="p">(</span><span class="n">r</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">toArray</span><span class="p">))).</span><span class="n">toDF</span><span class="p">(</span><span class="s2">"id"</span><span class="p">,</span> <span class="s2">"features"</span><span class="p">)</span>
+
+    <span class="p">/*</span> <span class="n">check</span> <span class="n">label</span> <span class="k">count</span>
+    <span class="n">hash</span><span class="p">:</span><span class="m">224</span><span class="n">d426a</span><span class="p">-</span><span class="n">ad9b</span><span class="p">-</span><span class="m">4e76</span><span class="p">-</span><span class="n">b1ef</span><span class="p">-</span><span class="m">3e37</span><span class="n">c963f14e</span> <span class="p">,</span> <span class="m">1524</span>
+    <span class="n">hash</span><span class="p">:</span><span class="m">23</span><span class="n">c7bc27</span><span class="p">-</span><span class="m">2</span><span class="n">b22</span><span class="p">-</span><span class="m">43f</span><span class="n">b</span><span class="p">-</span><span class="n">be40</span><span class="p">-</span><span class="m">2</span><span class="n">ec8ac94aaca</span> <span class="p">,</span> <span class="m">1524</span>
+    <span class="n">hash</span><span class="p">:</span><span class="m">2</span><span class="n">bc7399b</span><span class="p">-</span><span class="n">d36f</span><span class="p">-</span><span class="m">4269</span><span class="p">-</span><span class="n">be4d</span><span class="p">-</span><span class="n">e37e2ad4c5ff</span> <span class="p">,</span> <span class="m">2032</span>
+    <span class="n">hash</span><span class="p">:</span><span class="m">4</span><span class="n">c39e4f3</span><span class="p">-</span><span class="n">cf27</span><span class="p">-</span><span class="m">4</span><span class="n">eb3</span><span class="p">-</span><span class="m">8f</span><span class="n">bb</span><span class="p">-</span><span class="n">e82a61cde043</span> <span class="p">,</span> <span class="m">2032</span>
+    <span class="n">hash</span><span class="p">:</span><span class="m">6319</span><span class="n">b6cb</span><span class="p">-</span><span class="n">e3fa</span><span class="p">-</span><span class="m">40</span><span class="n">ed</span><span class="p">-</span><span class="n">bd24</span><span class="p">-</span><span class="n">e1dc3ac9450a</span> <span class="p">,</span> <span class="m">2032</span>
+    <span class="n">val</span> <span class="n">tranDataSet</span> <span class="p">=</span> <span class="n">seedPersons</span><span class="p">.</span><span class="n">filter</span><span class="p">(</span><span class="n">_</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">size</span> <span class="c1">!= 254).map(r =&gt; ( r._2._1 ,Vectors.dense(r._2._2.toArray))).toDF("id", "features")
+</span>    <span class="n">tranDataSet</span><span class="p">.</span><span class="n">foreach</span><span class="p">(</span><span class="n">r</span> <span class="p">=&gt;</span> <span class="n">println</span><span class="p">(</span><span class="n">r</span><span class="p">.</span><span class="n">getAs</span><span class="p">[</span><span class="k">String</span><span class="p">](</span><span class="s2">"id"</span><span class="p">)</span> <span class="p">+</span> <span class="s2">" , "</span> <span class="p">+</span> <span class="n">r</span><span class="p">.</span><span class="n">getAs</span><span class="p">[</span><span class="n">DenseVector</span><span class="p">](</span><span class="s2">"features"</span><span class="p">).</span><span class="n">values</span><span class="p">.</span><span class="n">size</span> <span class="p">))</span>
+    <span class="p">*/</span>
+
+    <span class="n">val</span> <span class="n">kmeans</span> <span class="p">=</span> <span class="n">new</span> <span class="n">KMeans</span><span class="p">().</span><span class="n">setK</span><span class="p">(</span><span class="n">kcluster</span><span class="p">).</span><span class="n">setSeed</span><span class="p">(</span><span class="n">kcluster</span><span class="p">)</span>
+    <span class="n">val</span> <span class="k">model</span> <span class="p">=</span> <span class="n">kmeans</span><span class="p">.</span><span class="n">fit</span><span class="p">(</span><span class="n">tranDataSet</span><span class="p">)</span>
+    <span class="n">val</span> <span class="n">seedKmodel</span> <span class="p">=</span> <span class="n">spark</span><span class="p">.</span><span class="n">sparkContext</span><span class="p">.</span><span class="n">parallelize</span><span class="p">(</span><span class="k">model</span><span class="p">.</span><span class="n">clusterCenters</span><span class="p">)</span>
+    <span class="n">val</span> <span class="n">resultIdList</span> <span class="p">=</span> <span class="n">seedKmodel</span><span class="p">.</span><span class="n">cartesian</span><span class="p">(</span><span class="n">allPersons</span><span class="p">)</span>
+      <span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="n">ds</span> <span class="p">=&gt;</span> <span class="p">(</span><span class="n">ds</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">_1</span><span class="p">.</span><span class="n">_1</span> <span class="p">,</span> <span class="n">LabelVectorUtil</span><span class="p">().</span><span class="n">cosineSimilarity</span><span class="p">(</span><span class="n">ds</span><span class="p">.</span><span class="n">_1</span><span class="p">.</span><span class="n">toArray</span> <span class="p">,</span> <span class="n">ds</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">_2</span><span class="p">)))</span>
+      <span class="p">.</span><span class="n">sortBy</span><span class="p">(</span><span class="n">_</span><span class="p">.</span><span class="n">_2</span> <span class="p">,</span> <span class="nb">false</span><span class="p">).</span><span class="n">take</span><span class="p">(</span><span class="n">outputPersons</span><span class="p">)</span>
+
+    <span class="n">spark</span><span class="p">.</span><span class="n">sparkContext</span><span class="p">.</span><span class="n">parallelize</span><span class="p">(</span><span class="n">resultIdList</span><span class="p">).</span><span class="n">saveAsTextFile</span><span class="p">(</span><span class="s2">"/enrich/tempResult/KmeansLookLikePerson"</span><span class="p">)</span>
+
+    <span class="n">spark</span><span class="p">.</span><span class="n">sparkContext</span><span class="p">.</span><span class="n">parallelize</span><span class="p">(</span><span class="n">Seq</span><span class="p">((</span><span class="n">jobkey</span> <span class="p">,</span> <span class="n">sparkId</span> <span class="p">,</span> <span class="s2">"1"</span><span class="p">))).</span><span class="n">saveToCassandra</span><span class="p">(</span><span class="s2">"miks2"</span> <span class="p">,</span> <span class="s2">"joblist"</span><span class="p">)</span>
+
+  <span class="p">}</span>
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>build.sbt</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import scalapb.compiler.Version.scalapbVersion
+
+name := "enrich-5.0"
+
+scalaVersion := "2.11.12" // spark only support scala 2.11
+
+PB.targets in Compile := Seq(
+    scalapb.gen() -&gt; (sourceManaged in Compile).value
+)
+
+//val sparkVersion = "2.4.0"
+val sparkVersion = "2.3.1"
+
+libraryDependencies ++= Seq(
+    "org.apache.spark"       %%  "spark-sql"                   % sparkVersion      % "provided",
+    "org.apache.spark"       %%  "spark-core"                  % sparkVersion      % "provided",
+    "org.apache.spark"       %%  "spark-streaming"             % sparkVersion      % "provided",
+    "org.apache.spark"       %%  "spark-streaming-kafka-0-10"  % sparkVersion      % "provided" exclude("net.jpountz.lz4", "lz4"),
+    "org.apache.spark"       %%  "spark-mllib"                 % sparkVersion,
+    "org.mongodb.scala"      %%  "mongo-scala-driver"          % "2.3.0",
+    "com.datastax.spark"     %%  "spark-cassandra-connector"   % "2.3.2",
+    "org.scalatest"          %%  "scalatest"                   % "3.0.5"           % "test",
+    "com.thesamet.scalapb"   %%  "scalapb-runtime-grpc"        % scalapbVersion,
+    "com.thesamet.scalapb"   %%  "scalapb-runtime"             % scalapbVersion    % "protobuf",
+    "io.grpc"                %   "grpc-okhttp"                 % "1.14.0",
+    "redis.clients"          %   "jedis"                       % "2.9.0",
+    "com.redislabs"          %   "spark-redis"                 % "2.3.1-M2",
+    "commons-codec"          %   "commons-codec"               % "1.11",
+    "com.jcraft"             %   "jsch"                        % "0.1.53",
+    "com.databricks"         %%  "spark-csv"                   % "1.5.0"
+)
+
+parallelExecution in Test := false
+
+assemblyJarName in assembly := name.value + ".jar"
+
+test in assembly := {}
+
+assemblyMergeStrategy in assembly := {
+    case PathList("ght","mi","cht" , xs @ _*) =&gt; MergeStrategy.discard
+    //    case PathList("ght","mi","imx" , xs @ _*) =&gt; MergeStrategy.discard
+    case PathList("ght","mi","twm" , xs @ _*) =&gt; MergeStrategy.discard
+    case PathList("ght","mi","grpc" , xs @ _*) =&gt; MergeStrategy.discard
+    case PathList("ght","mi","model","proto" , xs @ _*) =&gt; MergeStrategy.discard
+    case PathList("META-INF", xs @ _*) =&gt; MergeStrategy.discard
+    case x =&gt; MergeStrategy.first
+}
+
+scalacOptions in ThisBuild ++= Seq("-unchecked", "-deprecation")
+
+enablePlugins(SbtProguard)
+proguardOptions in Proguard += "-dontoptimize"
+proguardOptions in Proguard ++= Seq("-dontnote", "-dontwarn", "-ignorewarnings","-keepattributes Signature,*Annotation*","-keep class io.** { *; }","-keep class scala.** { *; }","-keep class com.** { *; }","-keep class org.** { *; }","-keep class scalapb.** { *; }")
+proguardInputs in Proguard := (dependencyClasspath in Compile).value.files
+proguardFilteredInputs in Proguard ++= ProguardOptions.noFilter((packageBin in Compile).value)
+proguardOptions in Proguard += ProguardOptions.keepMain("ght.**")
+
+javaOptions in (Proguard, proguard) := Seq("-Xmx4G")
+
+proguardMerge in Proguard := true
+proguardMergeStrategies in Proguard += ProguardMerge.last("javax.inject-2.4.0-b34.jar")
+proguardMergeStrategies in Proguard += ProguardMerge.last("io/netty/.".r)
+proguardMergeStrategies in Proguard += ProguardMerge.last("org/apache/commons/.".r)
+proguardMergeStrategies in Proguard += ProguardMerge.last("org/apache/hadoop/.".r)
+proguardMergeStrategies in Proguard += ProguardMerge.last("org/apache/spark/.".r)
+proguardMergeStrategies in Proguard += ProguardMerge.last("org/aopalliance/.".r)
+proguardMergeStrategies in Proguard += ProguardMerge.last("javax/.".r)
+proguardMergeStrategies in Proguard += ProguardMerge.last("java/.".r)
+proguardMergeStrategies in Proguard += ProguardMerge.last("net/jpountz/.".r)
+proguardMergeStrategies in Proguard += ProguardMerge.discard("META-INF/.".r)
+proguardMergeStrategies in Proguard += ProguardMerge.discard("git.properties")
+proguardMergeStrategies in Proguard += ProguardMerge.discard("rootdoc.txt")
+proguardMergeStrategies in Proguard += ProguardMerge.discard("ght/mi/twm/.".r)
+proguardMergeStrategies in Proguard += ProguardMerge.discard("ght/mi/cht/.".r)
+proguardMergeStrategies in Proguard += ProguardMerge.discard("ght/mi/imx/.".r)
+proguardMergeStrategies in Proguard += ProguardMerge.discard("ght/mi/grpc/.".r)
+proguardMergeStrategies in Proguard += ProguardMerge.discard("ght/mi/model/proto/.".r)
+proguardMergeStrategies in Proguard += ProguardMerge.discard("NOTICE")
+proguardMergeStrategies in Proguard += ProguardMerge.rename("LICENSE.*".r)
+</code></pre></div></div>
+
 
       </article>
       <hr>

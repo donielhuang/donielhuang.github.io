@@ -4,7 +4,7 @@ comments: false
 categories: akka
 ---
 
-### akka 
+### akka-http
 
 可以參考官網的 [akka-http](https://doc.akka.io/docs/akka-http/current/introduction.html#philosophy)
 

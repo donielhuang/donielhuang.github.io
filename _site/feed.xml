@@ -5,8 +5,8 @@
     <description>Daniel's Blogs</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 07 Mar 2019 12:53:14 +0800</pubDate>
-    <lastBuildDate>Thu, 07 Mar 2019 12:53:14 +0800</lastBuildDate>
+    <pubDate>Thu, 07 Mar 2019 18:13:55 +0800</pubDate>
+    <lastBuildDate>Thu, 07 Mar 2019 18:13:55 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
     
       <item>
@@ -16,6 +16,10 @@
 &lt;p&gt;使用 zeppelin 透過 spark 對 cassandra 做查詢．&lt;/p&gt;
 
 &lt;p&gt;先用 docker 下載後，再開 http://localhost:8080&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;docker pull apache/zeppelin:0.8.1
+docker run -p 8080:8080 --rm apache/zeppelin:0.8.1
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
 
 &lt;p&gt;建立 notebook&lt;/p&gt;
 
@@ -71,6 +75,72 @@ allPersons.take(5).foreach(p =&amp;gt; println(p._1._1))
 &lt;p&gt;結著只要按 run 就可以了．&lt;/p&gt;
 
 &lt;p&gt;&lt;img src=&quot;/static/img/zeppelin/zeppelin_6.jpg&quot; alt=&quot;zeppelin_6.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;如果需要有一些視覺化的圖表，則需要先把 Dataframe 轉成 spark sql 的 table．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;looklikePersons.registerTempTable(&quot;looklikePersons&quot;)
+allPersons.toDF().registerTempTable(&quot;allPersons&quot;)
+seedPersons.toDF().registerTempTable(&quot;seedPersons&quot;)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;程式碼如下 :&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;import com.datastax.spark.connector._
+import org.apache.spark.ml.clustering.KMeans
+import org.apache.spark.ml.linalg.Vectors
+
+val kcluster = 2
+val outputPersons = 10
+
+val testpersonSeed = &quot;hash:9ef58b79-8aab-4e5b-bcf5-b8974991e599,hash:cd5d9c99-393b-4814-8f62-9aebcc31bd21,hash:a0c95fa1-fc44-44ff-b4ae-c407cd53f292,hash:a2ada011-53a1-4d27-9885-dbfd2b0cb969,hash:ce1283e2-a72a-4377-86f5-c03774f00641,hash:4241c150-cde7-4cb7-9306-10946cdbb639,hash:be9fcd09-a1f5-467a-9065-82a89c86af83,hash:48f3d940-f0bd-4300-9f8a-33c29c56ace6,hash:35dc9c3d-f04d-4b27-a5ce-8180ea9705ec,hash:57258600-55c5-4d94-8d15-8f754d8d14bc&quot;
+
+val allPersons = sc.cassandraTable[(String,Seq[Double])](&quot;miks2&quot;,&quot;testpersonlabelvector&quot;)
+      .select(&quot;id&quot;,&quot;labelvector&quot;).keyBy[Tuple1[String]](&quot;id&quot;)
+
+val limitPersons = spark.sparkContext.parallelize(allPersons.take(1000))
+
+val seedPersons = sc.cassandraTable[(String,Seq[Double])](&quot;miks2&quot;,&quot;testpersonlabelvector&quot;)
+  .select(&quot;id&quot;,&quot;labelvector&quot;).where(&quot;id in ? &quot; , testpersonSeed.split(&quot;,&quot;).toSeq).keyBy[Tuple1[String]](&quot;id&quot;)
+
+val tranDataSet = seedPersons.filter(_._2._2.size == 254).map(r =&amp;gt; ( r._2._1 ,Vectors.dense(r._2._2.toArray))).toDF(&quot;id&quot;, &quot;features&quot;)
+
+val kmeans = new KMeans().setK(kcluster).setSeed(kcluster)
+val model = kmeans.fit(tranDataSet)
+val seedKmodel = sc.parallelize(model.clusterCenters)
+val resultIdList = seedKmodel.cartesian(limitPersons)
+  .map(ds =&amp;gt; (ds._2._1._1 , cosineSimilarity(ds._1.toArray , ds._2._2._2)))
+  .sortBy(_._2 , false).take(outputPersons)
+
+val looklikePersons = sc.parallelize(resultIdList).toDF()
+looklikePersons.registerTempTable(&quot;looklikePersons&quot;)
+allPersons.toDF().registerTempTable(&quot;allPersons&quot;)
+seedPersons.toDF().registerTempTable(&quot;seedPersons&quot;)
+
+def cosineSimilarity(x: Seq[Double], y: Seq[Double]): Double = {
+  val v = genDot(x, y)/(magnitude(x) * magnitude(y))
+  if(v.isNaN) {
+    0
+  } else {
+    v
+  }
+}
+
+def genDot(x: Seq[Double], y: Seq[Double]): Double = {
+  (for((a, b) &amp;lt;- x.zip(y)) yield a * b).sum
+}
+
+def magnitude(x: Seq[Double]): Double = {
+  math.sqrt(x.map(i =&amp;gt; i*i).sum)
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;接著只要下 sql 按 run 就可以看到圖表&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;%sql
+select * from looklikePersons 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/zeppelin/zeppelin_7.jpg&quot; alt=&quot;zeppelin_7.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
 
 </description>
         <pubDate>Thu, 07 Mar 2019 00:00:00 +0800</pubDate>
@@ -269,6 +339,15 @@ assemblyMergeStrategy in assembly := {
   case x =&amp;gt; MergeStrategy.first
 }
 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;直接啟動 server :&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;java -cp &quot;enrich-rest.jar:netty-all-4.1.17.Final.jar&quot; ght.mi.enrich.rest.SimpleWebServer
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;使用 curl 傳 json 資料給 lookLikePerson :&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;curl -H &quot;Content-Type: application/json&quot; -X POST -d '{&quot;likePerson&quot;:&quot;100&quot;,&quot;kcluster&quot;:&quot;5&quot;,&quot;ids&quot;:[&quot;hash:9ef58b79-8aab-4e5b-bcf5-b8974991e599&quot;,&quot;hash:87b0c3e8-7840-4d15-bb2f-9d4986e535a5&quot;]}' http://192.168.6.31:8080/lookLikePerson
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
 
 </description>

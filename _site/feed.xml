@@ -5,9 +5,82 @@
     <description>Daniel's Blogs</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Tue, 05 Mar 2019 12:46:14 +0800</pubDate>
-    <lastBuildDate>Tue, 05 Mar 2019 12:46:14 +0800</lastBuildDate>
+    <pubDate>Thu, 07 Mar 2019 12:53:14 +0800</pubDate>
+    <lastBuildDate>Thu, 07 Mar 2019 12:53:14 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
+    
+      <item>
+        <title>Zeppelin Helloword</title>
+        <description>&lt;h3 id=&quot;zeppelin&quot;&gt;zeppelin&lt;/h3&gt;
+
+&lt;p&gt;使用 zeppelin 透過 spark 對 cassandra 做查詢．&lt;/p&gt;
+
+&lt;p&gt;先用 docker 下載後，再開 http://localhost:8080&lt;/p&gt;
+
+&lt;p&gt;建立 notebook&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/zeppelin/zeppelin_1.jpg&quot; alt=&quot;zeppelin_1.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;原本程式的寫法 :&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val spark: SparkSession = SparkSession.builder().appName(&quot;KmeansLookLikePerson&quot;)
+      .config(&quot;spark.sql.warehouse.dir&quot;, &quot;/tmp&quot;)
+      .config(&quot;spark.cassandra.connection.host&quot;, EnrichConfig.CASSANDRA_IPS)
+      .config(&quot;spark.cassandra.auth.username&quot;, EnrichConfig.CASSANDRA_USER)
+      .config(&quot;spark.cassandra.auth.password&quot;, EnrichConfig.CASSANDRA_PSWD)
+      .getOrCreate()
+
+val allPersons = spark.sparkContext.cassandraTable[(String,Seq[Double])](&quot;miks2&quot;,&quot;testpersonlabelvector&quot;)
+  .select(&quot;id&quot;,&quot;labelvector&quot;).keyBy[Tuple1[String]](&quot;id&quot;)
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;寫到 notebook 裡面，可參考 &lt;a href=&quot;https://zeppelin.apache.org/docs/0.7.2/interpreter/spark.html#sparkcontext-sqlcontext-sparksession-zeppelincontext&quot;&gt;spark Interpreter for zeppelin&lt;/a&gt;，
+所以 zeppelin 預設就會給一個 sc 就是 sparkContext．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;import com.datastax.spark.connector._
+
+val allPersons = sc.cassandraTable[(String,Seq[Double])](&quot;miks2&quot;,&quot;testpersonlabelvector&quot;)
+      .select(&quot;id&quot;,&quot;labelvector&quot;).keyBy[Tuple1[String]](&quot;id&quot;)
+
+allPersons.take(5).foreach(p =&amp;gt; println(p._1._1))
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;那原本要設定 cassandra 的 host、username、password 要帶給 sparkContext，就要設定在 Interpreter 的 spark 設定裡．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/zeppelin/zeppelin_2.jpg&quot; alt=&quot;zeppelin_2.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;把參數設定在這裡 :&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/zeppelin/zeppelin_3.jpg&quot; alt=&quot;zeppelin_3.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;那由於有使用到 spark cassandra 所以要 import library&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;import com.datastax.spark.connector._
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;設定在 dependencies，加上需要的 library．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/zeppelin/zeppelin_4.jpg&quot; alt=&quot;zeppelin_4.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;zeppelin 會去 maven 或指定的 repositories 下載 library．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/zeppelin/zeppelin_5.jpg&quot; alt=&quot;zeppelin_5.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;結著只要按 run 就可以了．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/zeppelin/zeppelin_6.jpg&quot; alt=&quot;zeppelin_6.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+</description>
+        <pubDate>Thu, 07 Mar 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/spark/2019/03/07/zeppelin-helloword.html</link>
+        <guid isPermaLink="true">http://localhost:4000/spark/2019/03/07/zeppelin-helloword.html</guid>
+        
+        
+        <category>spark</category>
+        
+      </item>
     
       <item>
         <title>Akka_http Spark</title>

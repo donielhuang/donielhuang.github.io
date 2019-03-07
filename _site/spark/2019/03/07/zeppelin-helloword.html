@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Zeppelin Helloword</title>
+	<meta name="description" content="zeppelin">
+	
+	<link rel="canonical" href="http://localhost:4000/spark/2019/03/07/zeppelin-helloword.html">
+	<link rel="alternate" type="application/rss+xml" title="Daniel's Blog" href="http://localhost:4000/feed.xml" />
+	
+	<!-- <link rel="stylesheet" href="/css/main.css"> -->
+    
+    <link rel="stylesheet" type="text/css" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/index.css">
+	<script type="text/javascript" src="/static/js/jquery-1.11.1.min.js"></script>
+	<script type="text/javascript" src="/static/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/css/monokai_sublime.min.css">
+	<script type="text/javascript" src="/static/js/highlight.min.js"></script>
+
+    <!--
+    <link rel="stylesheet" type="text/css" href="http://apps.bdimg.com/libs/bootstrap/3.3.0/css/bootstrap.min.css">
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/jquery/2.1.1/jquery.min.js"></script>
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="http://apps.bdimg.com/libs/highlight.js/8.4/styles/monokai_sublime.min.css">
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/highlight.js/8.4/highlight.min.js"></script>
+    -->
+    
+	<script type="text/javascript" src="/static/js/index.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+ <!--  <body data-spy="scroll" data-target="#myAffix"> -->
+  <body>
+
+    <header>
+
+<!-- navbar -->
+  <nav class="navbar navbar-inverse">
+  <div class="container">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Daniel's Blog</a>
+      <p class="navbar-text"></p>
+    </div>
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+      <ul class="nav navbar-nav navbar-right">
+
+        
+          <li>
+        
+        <a href="/">Home</a></li>
+
+        
+          
+            
+              <li>
+            
+            <a href="/projects/"><span class="glyphicon "></span> Projects</a></li>
+          
+        
+          
+            
+              <li>
+            
+            <a href="/about/"><span class="glyphicon "></span> About</a></li>
+          
+        
+          
+        
+          
+        
+      </ul>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container-fluid -->
+</nav>
+
+</header>
+
+    <div id="main" class="container main">
+      <div class="row">
+  <div id="myArticle" class="col-sm-9">
+    <div class="post-area post">
+      <header>
+        <h1>Zeppelin Helloword</h1>
+        <p>Mar 7, 2019</p>
+      </header>
+      <hr>
+      <article>
+        <h3 id="zeppelin">zeppelin</h3>
+
+<p>使用 zeppelin 透過 spark 對 cassandra 做查詢．</p>
+
+<p>先用 docker 下載後，再開 http://localhost:8080</p>
+
+<p>建立 notebook</p>
+
+<p><img src="/static/img/zeppelin/zeppelin_1.jpg" alt="zeppelin_1.jpg" height="80%" width="80%" /></p>
+
+<p>原本程式的寫法 :</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val spark: SparkSession = SparkSession.builder().appName("KmeansLookLikePerson")
+      .config("spark.sql.warehouse.dir", "/tmp")
+      .config("spark.cassandra.connection.host", EnrichConfig.CASSANDRA_IPS)
+      .config("spark.cassandra.auth.username", EnrichConfig.CASSANDRA_USER)
+      .config("spark.cassandra.auth.password", EnrichConfig.CASSANDRA_PSWD)
+      .getOrCreate()
+
+val allPersons = spark.sparkContext.cassandraTable[(String,Seq[Double])]("miks2","testpersonlabelvector")
+  .select("id","labelvector").keyBy[Tuple1[String]]("id")
+
+</code></pre></div></div>
+
+<p>寫到 notebook 裡面，可參考 <a href="https://zeppelin.apache.org/docs/0.7.2/interpreter/spark.html#sparkcontext-sqlcontext-sparksession-zeppelincontext">spark Interpreter for zeppelin</a>，
+所以 zeppelin 預設就會給一個 sc 就是 sparkContext．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import com.datastax.spark.connector._
+
+val allPersons = sc.cassandraTable[(String,Seq[Double])]("miks2","testpersonlabelvector")
+      .select("id","labelvector").keyBy[Tuple1[String]]("id")
+
+allPersons.take(5).foreach(p =&gt; println(p._1._1))
+
+</code></pre></div></div>
+
+<p>那原本要設定 cassandra 的 host、username、password 要帶給 sparkContext，就要設定在 Interpreter 的 spark 設定裡．</p>
+
+<p><img src="/static/img/zeppelin/zeppelin_2.jpg" alt="zeppelin_2.jpg" height="80%" width="80%" /></p>
+
+<p>把參數設定在這裡 :</p>
+
+<p><img src="/static/img/zeppelin/zeppelin_3.jpg" alt="zeppelin_3.jpg" height="80%" width="80%" /></p>
+
+<p>那由於有使用到 spark cassandra 所以要 import library</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import com.datastax.spark.connector._
+</code></pre></div></div>
+
+<p>設定在 dependencies，加上需要的 library．</p>
+
+<p><img src="/static/img/zeppelin/zeppelin_4.jpg" alt="zeppelin_4.jpg" height="80%" width="80%" /></p>
+
+<p>zeppelin 會去 maven 或指定的 repositories 下載 library．</p>
+
+<p><img src="/static/img/zeppelin/zeppelin_5.jpg" alt="zeppelin_5.jpg" height="80%" width="80%" /></p>
+
+<p>結著只要按 run 就可以了．</p>
+
+<p><img src="/static/img/zeppelin/zeppelin_6.jpg" alt="zeppelin_6.jpg" height="80%" width="80%" /></p>
+
+
+      </article>
+      <hr>
+    </div>
+  </div>
+</div>
+    </div>
+
+    
+    <div id="top" data-toggle="tooltip" data-placement="left" title="back to top">
+      <a href="javascript:;">
+        <div class="arrow"></div>
+        <div class="stick"></div>
+      </a>
+    </div>
+
+    <footer class="">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12">
+        <a href="mailto:"><span class="glyphicon glyphicon-envelope"></span> </a>
+          <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span><a href="_posts/zeppelin/2019-03-07-zeppelin-helloword.md">View source</a></span>
+          <span class="point"> · </span>
+		      <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span>&copy; 2019 Daniel</span>
+      </div>
+    </div>
+  </div>
+</footer>
+  
+  </body>
+</html>

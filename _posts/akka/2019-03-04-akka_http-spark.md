@@ -195,5 +195,18 @@ assemblyMergeStrategy in assembly := {
 }
 
 ```
+直接啟動 server :  
+
+```
+java -cp "enrich-rest.jar:netty-all-4.1.17.Final.jar" ght.mi.enrich.rest.SimpleWebServer
+```
+
+使用 curl 傳 json 資料給 lookLikePerson :  
+
+```
+curl -H "Content-Type: application/json" -X POST -d '{"likePerson":"100","kcluster":"5","ids":["hash:9ef58b79-8aab-4e5b-bcf5-b8974991e599","hash:87b0c3e8-7840-4d15-bb2f-9d4986e535a5"]}' http://192.168.6.31:8080/lookLikePerson
+```
+
+
 
 

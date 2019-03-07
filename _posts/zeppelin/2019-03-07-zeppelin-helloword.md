@@ -143,6 +143,30 @@ select * from looklikePersons
 
 ![zeppelin_7.jpg](/static/img/zeppelin/zeppelin_7.jpg){:height="80%" width="80%"}
 
+使用 spark 查詢 cassandra 然後建立一個 table 建立一個 spark sql 的 table，讓 user 用 sql 下查詢並看結果．  
+先查詢要的 table 及欄位 :  
+
+```
+import com.datastax.spark.connector._
+
+val allPersons = sc.cassandraTable("miks1","twmperson").select("id","labels").map(row => (row.get[String]("id") , row.get[String]("labels"))).toDF("id","labels")
+
+allPersons.registerTempTable("allPersons")
+
+```
+
+使用 sql 查詢想要的 labels 來查看有多少人有這些 labels  
+
+```
+%sql
+select id,labels from allPersons where labels like '%36%' or labels like '%92%'
+```
+
+結果表示有 labels 36 跟 92 的人共有 241 個。  
+
+![zeppelin_8.jpg](/static/img/zeppelin/zeppelin_8.jpg){:height="80%" width="80%"}
+
+
 
 
 

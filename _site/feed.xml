@@ -5,8 +5,8 @@
     <description>Daniel's Blogs</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 07 Mar 2019 18:13:55 +0800</pubDate>
-    <lastBuildDate>Thu, 07 Mar 2019 18:13:55 +0800</lastBuildDate>
+    <pubDate>Thu, 07 Mar 2019 19:03:17 +0800</pubDate>
+    <lastBuildDate>Thu, 07 Mar 2019 19:03:17 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
     
       <item>
@@ -141,6 +141,27 @@ select * from looklikePersons
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
 
 &lt;p&gt;&lt;img src=&quot;/static/img/zeppelin/zeppelin_7.jpg&quot; alt=&quot;zeppelin_7.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;使用 spark 查詢 cassandra 然後建立一個 table 建立一個 spark sql 的 table，讓 user 用 sql 下查詢並看結果．&lt;br /&gt;
+先查詢要的 table 及欄位 :&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;import com.datastax.spark.connector._
+
+val allPersons = sc.cassandraTable(&quot;miks1&quot;,&quot;twmperson&quot;).select(&quot;id&quot;,&quot;labels&quot;).map(row =&amp;gt; (row.get[String](&quot;id&quot;) , row.get[String](&quot;labels&quot;))).toDF(&quot;id&quot;,&quot;labels&quot;)
+
+allPersons.registerTempTable(&quot;allPersons&quot;)
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;使用 sql 查詢想要的 labels 來查看有多少人有這些 labels&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;%sql
+select id,labels from allPersons where labels like '%36%' or labels like '%92%'
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;結果表示有 labels 36 跟 92 的人共有 241 個。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/zeppelin/zeppelin_8.jpg&quot; alt=&quot;zeppelin_8.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
 
 </description>
         <pubDate>Thu, 07 Mar 2019 00:00:00 +0800</pubDate>

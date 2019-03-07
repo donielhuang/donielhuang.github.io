@@ -10,6 +10,11 @@ categories: spark
 
 先用 docker 下載後，再開 http://localhost:8080
 
+```
+docker pull apache/zeppelin:0.8.1
+docker run -p 8080:8080 --rm apache/zeppelin:0.8.1
+```
+
 建立 notebook
 
 ![zeppelin_1.jpg](/static/img/zeppelin/zeppelin_1.jpg){:height="80%" width="80%"}

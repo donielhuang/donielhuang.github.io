@@ -343,11 +343,18 @@ com.fasterxml.jackson.databind.JsonMappingException: Incompatible Jackson versio
 -rw-r--r--  1 miuser miuser    73055 Oct 16 14:38 jersey-media-json-jackson-2.27.jar
 ```
 
-
-
-
 [zeppelin 整 spark 問題](https://blog.csdn.net/a376554764/article/details/84672444)
 
+跑 yarn-cluster mode :  
+
+![zeppelin_9.jpg](/static/img/zeppelin/zeppelin_9.jpg){:height="80%" width="80%"}
+
+把 spark-cassandra-connector_2.11-2.3.2.jar 丟到各台的 spark lib 底下 :  
+
+```
+/opt/spark-2.3.1-bin-hadoop2.7/jars>ll | grep cassandra
+-rw-r--r--  1 miuser miuser  8539058 Mar 12 15:28 spark-cassandra-connector_2.11-2.3.2.jar
+```
 
 
 

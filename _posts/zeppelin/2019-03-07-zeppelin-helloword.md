@@ -356,5 +356,21 @@ com.fasterxml.jackson.databind.JsonMappingException: Incompatible Jackson versio
 -rw-r--r--  1 miuser miuser  8539058 Mar 12 15:28 spark-cassandra-connector_2.11-2.3.2.jar
 ```
 
+```
+import com.datastax.spark.connector._
+
+val findLabelIndex = "3"
+val cassandraKeyspace = "test1"
+val cassandraTable = "test"
+val allPersons = spark.sparkContext.cassandraTable[(String,Map[String,Double])](cassandraKeyspace,cassandraTable).select("id","labels").filter(l => l._2.contains(findLabelIndex)).toDF("id","labels")
+
+allPersons.registerTempTable("allPersons")
+
+```
+
+將 zeppelin 的 spark notebook 跑在 yarn 上面 :  
+
+![zeppelin_10.jpg](/static/img/zeppelin/zeppelin_10.jpg){:height="80%" width="80%"}
+
 
 

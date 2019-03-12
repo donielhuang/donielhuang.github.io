@@ -197,12 +197,12 @@ total 33
 ```
 val allPersons = sc.cassandraTable[(String,Map[String,Double])]("miks1","twmperson").select("id","labels").filter(l => l._2.contains("92")).toDF("id","labels")
 ```
-如果環境是 spark 2 記得改成使用 spark，否則會有 dependency 的問題 :
+如果環境是 spark 2 記得改成使用 spark(sparksession)，否則會有 dependency 的問題 :
 
 ```
 import com.datastax.spark.connector._
 
-val allPersons = spark.cassandraTable[(String,Map[String,Double])]("miks1","twmperson").select("id","labels").filter(l => l._2.contains("92")).toDF("id","labels")
+val allPersons = spark.sparkContext.cassandraTable[(String,Map[String,Double])]("miks1","twmperson").select("id","labels").filter(l => l._2.contains("92")).toDF("id","labels")
 
 allPersons.registerTempTable("allPersons")
 

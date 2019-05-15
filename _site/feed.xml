@@ -5,9 +5,241 @@
     <description>Daniel's Blogs</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 07 Mar 2019 19:03:17 +0800</pubDate>
-    <lastBuildDate>Thu, 07 Mar 2019 19:03:17 +0800</lastBuildDate>
+    <pubDate>Wed, 15 May 2019 13:16:03 +0800</pubDate>
+    <lastBuildDate>Wed, 15 May 2019 13:16:03 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
+    
+      <item>
+        <title>Grafana Helloword</title>
+        <description>&lt;h3 id=&quot;grafana&quot;&gt;grafana&lt;/h3&gt;
+
+&lt;p&gt;使用 grafana 來監控一些數據．&lt;/p&gt;
+
+&lt;p&gt;先下載 grafana-6.2.0-beta1、prometheus-2.9.2.darwin-amd64、pushgateway-0.8.0.darwin-amd64&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;gt; mygrafana &amp;gt; ll
+total 202904
+drwxr-xr-x  12 daniel  staff   384B May  9 10:49 grafana-6.2.0-beta1
+drwxr-xr-x@ 10 daniel  staff   320B May  9 18:46 prometheus-2.9.2.darwin-amd64
+drwxr-xr-x@  7 daniel  staff   224B May  9 18:03 pushgateway-0.8.0.darwin-amd64
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h4 id=&quot;啟動-grafana&quot;&gt;啟動 grafana&lt;/h4&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;./grafana-server web
+INFO[05-15|10:28:13] Starting Grafana                         logger=server version=6.2.0-beta1 commit=9d877d6 branch=HEAD compiled=2019-05-07T22:08:46+0800
+INFO[05-15|10:28:13] Config loaded from                       logger=settings file=/Users/daniel/1-project/2-ght/mygrafana/grafana-6.2.0-beta1/conf/defaults.ini
+INFO[05-15|10:28:13] Config loaded from                       logger=settings file=/Users/daniel/1-project/2-ght/mygrafana/grafana-6.2.0-beta1/conf/custom.ini
+INFO[05-15|10:28:13] Path Home                                logger=settings path=/Users/daniel/1-project/2-ght/mygrafana/grafana-6.2.0-beta1
+INFO[05-15|10:28:13] Path Data                                logger=settings path=/Users/daniel/1-project/2-ght/mygrafana/grafana-6.2.0-beta1/data
+INFO[05-15|10:28:13] Path Logs                                logger=settings path=/Users/daniel/1-project/2-ght/mygrafana/grafana-6.2.0-beta1/data/log
+INFO[05-15|10:28:13] Path Plugins                             logger=settings path=/Users/daniel/1-project/2-ght/mygrafana/grafana-6.2.0-beta1/data/plugins
+INFO[05-15|10:28:13] Path Provisioning                        logger=settings path=/Users/daniel/1-project/2-ght/mygrafana/grafana-6.2.0-beta1/conf/provisioning
+INFO[05-15|10:28:13] App mode production                      logger=settings
+INFO[05-15|10:28:13] Initializing SqlStore                    logger=server
+INFO[05-15|10:28:13] Connecting to DB                         logger=sqlstore dbtype=sqlite3
+INFO[05-15|10:28:13] Starting DB migration                    logger=migrator
+INFO[05-15|10:28:13] Initializing HTTPServer                  logger=server
+INFO[05-15|10:28:13] Initializing InternalMetricsService      logger=server
+INFO[05-15|10:28:13] Initializing RemoteCache                 logger=server
+INFO[05-15|10:28:13] Initializing QuotaService                logger=server
+INFO[05-15|10:28:13] Initializing LoginService                logger=server
+INFO[05-15|10:28:13] Initializing PluginManager               logger=server
+INFO[05-15|10:28:13] Starting plugin search                   logger=plugins
+INFO[05-15|10:28:13] Initializing RenderingService            logger=server
+INFO[05-15|10:28:13] Initializing AlertingService             logger=server
+INFO[05-15|10:28:13] Initializing DatasourceCacheService      logger=server
+INFO[05-15|10:28:13] Initializing HooksService                logger=server
+INFO[05-15|10:28:13] Initializing SearchService               logger=server
+INFO[05-15|10:28:13] Initializing ServerLockService           logger=server
+INFO[05-15|10:28:13] Initializing TracingService              logger=server
+INFO[05-15|10:28:13] Initializing UsageStatsService           logger=server
+INFO[05-15|10:28:13] Initializing UserAuthTokenService        logger=server
+INFO[05-15|10:28:13] Initializing CleanUpService              logger=server
+INFO[05-15|10:28:13] Initializing NotificationService         logger=server
+INFO[05-15|10:28:13] Initializing provisioningServiceImpl     logger=server
+INFO[05-15|10:28:13] Initializing Stream Manager
+INFO[05-15|10:28:13] HTTP Server Listen                       logger=http.server address=0.0.0.0:3000 protocol=http subUrl= socket=
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/grafana/grafana-day1_1.jpg&quot; alt=&quot;grafana-day1_1.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;一開始會有預設一組帳密 : admin / admin&lt;/p&gt;
+
+&lt;h4 id=&quot;啟動-prometheus-&quot;&gt;啟動 prometheus :&lt;/h4&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;prometheus-2.9.2.darwin-amd64 &amp;gt; ./prometheus --config.file=prometheus.yml
+level=info ts=2019-05-15T02:37:38.200Z caller=main.go:285 msg=&quot;no time or size retention was set so using the default time retention&quot; duration=15d
+level=info ts=2019-05-15T02:37:38.200Z caller=main.go:321 msg=&quot;Starting Prometheus&quot; version=&quot;(version=2.9.2, branch=HEAD, revision=d3245f15022551c6fc8281766ea62db4d71e2747)&quot;
+level=info ts=2019-05-15T02:37:38.200Z caller=main.go:322 build_context=&quot;(go=go1.12.4, user=root@1d43b6951e8f, date=20190424-15:38:47)&quot;
+level=info ts=2019-05-15T02:37:38.200Z caller=main.go:323 host_details=(darwin)
+level=info ts=2019-05-15T02:37:38.200Z caller=main.go:324 fd_limits=&quot;(soft=4864, hard=unlimited)&quot;
+level=info ts=2019-05-15T02:37:38.200Z caller=main.go:325 vm_limits=&quot;(soft=unlimited, hard=unlimited)&quot;
+level=info ts=2019-05-15T02:37:38.202Z caller=main.go:640 msg=&quot;Starting TSDB ...&quot;
+level=info ts=2019-05-15T02:37:38.202Z caller=web.go:416 component=web msg=&quot;Start listening for connections&quot; address=0.0.0.0:9090
+level=info ts=2019-05-15T02:37:38.204Z caller=repair.go:47 component=tsdb msg=&quot;found healthy block&quot; mint=1557371288998 maxt=1557374400000 ulid=01DADKA0ME61GBCXZZ0YVWQKMG
+level=info ts=2019-05-15T02:37:38.205Z caller=repair.go:47 component=tsdb msg=&quot;found healthy block&quot; mint=1557374400000 maxt=1557381600000 ulid=01DADP8RS3Z27R79HFDRWZX31Y
+level=info ts=2019-05-15T02:37:38.205Z caller=repair.go:47 component=tsdb msg=&quot;found healthy block&quot; mint=1557381600000 maxt=1557388800000 ulid=01DADX48WVR4ZAX2N09TQ634V9
+level=info ts=2019-05-15T02:37:38.362Z caller=main.go:655 msg=&quot;TSDB started&quot;
+level=info ts=2019-05-15T02:37:38.362Z caller=main.go:724 msg=&quot;Loading configuration file&quot; filename=prometheus.yml
+level=info ts=2019-05-15T02:37:38.383Z caller=main.go:751 msg=&quot;Completed loading of configuration file&quot; filename=prometheus.yml
+level=info ts=2019-05-15T02:37:38.384Z caller=main.go:609 msg=&quot;Server is ready to receive web requests.&quot;
+level=info ts=2019-05-15T02:37:44.781Z caller=compact.go:499 component=tsdb msg=&quot;write block&quot; mint=1557388800000 maxt=1557396000000 ulid=01DAWNMK7NWPY77XXGBE31759Q duration=728.109783ms
+level=info ts=2019-05-15T02:37:44.812Z caller=head.go:540 component=tsdb msg=&quot;head GC completed&quot; duration=2.494261ms
+level=info ts=2019-05-15T02:37:45.645Z caller=compact.go:499 component=tsdb msg=&quot;write block&quot; mint=1557396000000 maxt=1557403200000 ulid=01DAWNMKZG1HEZM796YENH8N3V duration=829.050418ms
+level=info ts=2019-05-15T02:37:45.674Z caller=head.go:540 component=tsdb msg=&quot;head GC completed&quot; duration=1.907243ms
+level=info ts=2019-05-15T02:37:48.836Z caller=compact.go:444 component=tsdb msg=&quot;compact blocks&quot; count=2 mint=1557371288998 maxt=1557381600000 ulid=01DAWNMQ6HRM85GWCQ2KFHP58B sources=&quot;[01DADKA0ME61GBCXZZ0YVWQKMG 01DADP8RS3Z27R79HFDRWZX31Y]&quot; duration=722.930613ms
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/grafana/grafana-day1_2.jpg&quot; alt=&quot;grafana-day1_2.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;設定 grafana 的 data source :&lt;br /&gt;
+&lt;img src=&quot;/static/img/grafana/grafana-day1_3.jpg&quot; alt=&quot;grafana-day1_3.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;輸入 Prometheus 的 URL :&lt;br /&gt;
+&lt;img src=&quot;/static/img/grafana/grafana-day1_4.jpg&quot; alt=&quot;grafana-day1_4.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;建立新的 dashboard :&lt;br /&gt;
+&lt;img src=&quot;/static/img/grafana/grafana-day1_5.jpg&quot; alt=&quot;grafana-day1_5.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;建立新的 query :&lt;br /&gt;
+&lt;img src=&quot;/static/img/grafana/grafana-day1_6.jpg&quot; alt=&quot;grafana-day1_6.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;接著在 query 的條件下 go_gc_duration_seconds，grafana 會定時從 prometheus 讀取數值並呈現圖表 :&lt;br /&gt;
+&lt;img src=&quot;/static/img/grafana/grafana-day1_7.jpg&quot; alt=&quot;grafana-day1_7.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;也可以在 prometheus 查詢資料 :&lt;br /&gt;
+&lt;img src=&quot;/static/img/grafana/grafana-day1_8.jpg&quot; alt=&quot;grafana-day1_8.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;啟動-pushgateway&quot;&gt;啟動 pushgateway&lt;/h4&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;./pushgateway  --web.listen-address &quot;:9091&quot; --persistence.file /Users/daniel/1-project/2-ght/mygrafana/pushgateway-0.8.0.darwin-amd64/data/file
+INFO[0000] Starting pushgateway (version=0.8.0, branch=HEAD, revision=d90bf3239c5ca08d72ccc9e2e2ff3a62b99a122e)  source=&quot;main.go:65&quot;
+INFO[0000] Build context (go=go1.11.8, user=root@00855c3ed64f, date=20190413-11:29:57)  source=&quot;main.go:66&quot;
+INFO[0000] Listening on :9091.                           source=&quot;main.go:108&quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/grafana/grafana-day1_9.jpg&quot; alt=&quot;grafana-day1_9.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;接著修改 prometheus 的 prometheus.yml 檔案，新增來源，prometheus 就會去 pushgateway 讀取資料 :&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  - job_name: pushgateway
+    static_configs:
+    - targets: ['localhost:9091']
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;prometheus.yml :&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# my global config
+global:
+  scrape_interval:     15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+  evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
+  # scrape_timeout is set to the global default (10s).
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+      # - alertmanager:9093
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+rule_files:
+  # - &quot;first_rules.yml&quot;
+  # - &quot;second_rules.yml&quot;
+
+# A scrape configuration containing exactly one endpoint to scrape:
+# Here it's Prometheus itself.
+scrape_configs:
+  # The job name is added as a label `job=&amp;lt;job_name&amp;gt;` to any timeseries scraped from this config.
+  - job_name: 'prometheus'
+
+    # metrics_path defaults to '/metrics'
+    # scheme defaults to 'http'.
+
+    static_configs:
+    - targets: ['localhost:9090']
+
+  - job_name: pushgateway
+    static_configs:
+    - targets: ['localhost:9091']
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;可以看到 target 多一個 pushgateway :&lt;br /&gt;
+&lt;img src=&quot;/static/img/grafana/grafana-day1_10.jpg&quot; alt=&quot;grafana-day1_10.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;post 資料給 pushgateway :&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;echo &quot;mappingcount 500&quot; | curl --data-binary @- http://localhost:9091/metrics/job/idmapping_report
+echo &quot;personsCount 5000&quot; | curl --data-binary @- http://localhost:9091/metrics/job/idmapping_report
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;可以在 pushgateway 上看到 post 的資料 : 
+&lt;img src=&quot;/static/img/grafana/grafana-day1_11.jpg&quot; alt=&quot;grafana-day1_11.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;可以在 prometheus 查到到 pushgateway 的資料 : 
+&lt;img src=&quot;/static/img/grafana/grafana-day1_12.jpg&quot; alt=&quot;grafana-day1_12.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;接著就可以在 grafana 拉想要的圖表 :&lt;br /&gt;
+&lt;img src=&quot;/static/img/grafana/grafana-day1_13.jpg&quot; alt=&quot;grafana-day1_13.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;dashboard 畫面 :&lt;br /&gt;
+&lt;img src=&quot;/static/img/grafana/grafana-day1_14.jpg&quot; alt=&quot;grafana-day1_14.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;流程圖 :&lt;br /&gt;
+&lt;img src=&quot;/static/img/grafana/grafana-day1_15.jpg&quot; alt=&quot;grafana-day1_15.jpg&quot; height=&quot;60%&quot; width=&quot;60%&quot; /&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;使用-node_exporter&quot;&gt;使用 node_exporter&lt;/h3&gt;
+
+&lt;p&gt;下載 node_exporter :&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;git clone https://github.com/prometheus/node_exporter.git
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;下 make 時遇到下面錯誤 :&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;gt; make
+xcrun: error: invalid active developer path (/Library/Developer/CommandLineTools), missing xcrun at: /Library/Developer/CommandLineTools/usr/bin/xcrun
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;安裝 xcode&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;xcode-select --install
+sudo xcode-select -switch /
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;安裝完 make 還是遇到很多問題，在 Mac 上 make 不成功．&lt;/p&gt;
+
+&lt;p&gt;所以先用測試環境直接執行 :&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/usr/sbin/node_exporter --web.listen-address=:4100 --collector.textfile.directory /Users/daniel/1-project/2-ght/mygrafana/nodeExporter/textfile_collector
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;修改 prometheus.yml 檔案，新增來源，prometheus 就會去 node-exporter 讀取資料 :&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;- job_name: 'node-exporter'
+    static_configs:
+            - targets: ['HDFS1:4100', 'HDFS2:4100', 'HDFS3:4100', 'Rediscluster1:4100', 'Rediscluster2:4100', 'Rediscluster3:4100']
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;可以在很多台機器上執行 node-exporter．&lt;/p&gt;
+
+&lt;p&gt;只要在 /Users/daniel/1-project/2-ght/mygrafana/nodeExporter/textfile_collector 路徑產生 prom 檔案，按照格式寫入就可以讓 prometheus 抓到 node-exporter 的資料 :&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/Users/daniel/1-project/2-ght/mygrafana/nodeExporter/textfile_collector/chtWeeklyReport.prom
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;chtWeeklyReport.prom 檔案內容格式如下 :&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;labelcount_report{content=&quot;totalLabelCount&quot;} 50000
+labelcount_report{content=&quot;clientLabelCount&quot;} 1000
+idmapping_report{content=&quot;mappingcount&quot;} 500
+idmapping_report{content=&quot;personsCount&quot;} 5000
+idmapping_report{content=&quot;mappingPercentage&quot;} 0.1
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+</description>
+        <pubDate>Wed, 15 May 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/grafana/2019/05/15/grafana-helloword.html</link>
+        <guid isPermaLink="true">http://localhost:4000/grafana/2019/05/15/grafana-helloword.html</guid>
+        
+        
+        <category>grafana</category>
+        
+      </item>
     
       <item>
         <title>Zeppelin Helloword</title>
@@ -162,6 +394,193 @@ select id,labels from allPersons where labels like '%36%' or labels like '%92%'
 &lt;p&gt;結果表示有 labels 36 跟 92 的人共有 241 個。&lt;/p&gt;
 
 &lt;p&gt;&lt;img src=&quot;/static/img/zeppelin/zeppelin_8.jpg&quot; alt=&quot;zeppelin_8.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;./bin/install-interpreter.sh --name &quot;interpreter-name&quot; --artifact org.apache.zeppelin:spark2-shims:0.8.0 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/zeppelin-0.8.1-bin-all/bin&amp;gt;./install-interpreter.sh --name &quot;interpreter-name&quot; --artifact org.apache.zeppelin:spark2-shims:0.8.0
+Java HotSpot(TM) 64-Bit Server VM warning: ignoring option MaxPermSize=512m; support was removed in 8.0
+SLF4J: Class path contains multiple SLF4J bindings.
+SLF4J: Found binding in [jar:file:/home/miuser/enrich/zeppelin/zeppelin-0.8.1-bin-all/lib/interpreter/slf4j-log4j12-1.7.10.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: Found binding in [jar:file:/home/miuser/enrich/zeppelin/zeppelin-0.8.1-bin-all/lib/slf4j-log4j12-1.7.10.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: See http://www.slf4j.org/codes.html#multiple_bindings for an explanation.
+SLF4J: Actual binding is of type [org.slf4j.impl.Log4jLoggerFactory]
+Install interpreter-name(org.apache.zeppelin:spark2-shims:0.8.0) to /home/miuser/enrich/zeppelin/zeppelin-0.8.1-bin-all/interpreter/interpreter-name ...
+Interpreter interpreter-name installed under /home/miuser/enrich/zeppelin/zeppelin-0.8.1-bin-all/interpreter/interpreter-name.
+
+1. Restart Zeppelin
+2. Create interpreter setting in 'Interpreter' menu on Zeppelin GUI
+3. Then you can bind the interpreter on your note
+miuser@dmpn1:~/enrich/zeppelin/zeppelin-0.8.1-bin-all/bin&amp;gt;ll
+total 33
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;如果環境是 spark 1 是使用 sc :&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val allPersons = sc.cassandraTable[(String,Map[String,Double])](&quot;miks1&quot;,&quot;twmperson&quot;).select(&quot;id&quot;,&quot;labels&quot;).filter(l =&amp;gt; l._2.contains(&quot;92&quot;)).toDF(&quot;id&quot;,&quot;labels&quot;)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;如果環境是 spark 2 記得改成使用 spark(sparksession)，否則會有 dependency 的問題 :&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;import com.datastax.spark.connector._
+
+val allPersons = spark.sparkContext.cassandraTable[(String,Map[String,Double])](&quot;miks1&quot;,&quot;twmperson&quot;).select(&quot;id&quot;,&quot;labels&quot;).filter(l =&amp;gt; l._2.contains(&quot;92&quot;)).toDF(&quot;id&quot;,&quot;labels&quot;)
+
+allPersons.registerTempTable(&quot;allPersons&quot;)
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;這段很重要 :&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;SparkContext, SQLContext and ZeppelinContext are automatically created and exposed as variable names sc, sqlContext and z, respectively, in Scala, Python and R environments. Staring from 0.6.1 SparkSession is available as variable spark when you are using Spark 2.x.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;遇到下列的錯誤&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;java.lang.NoSuchMethodError: io.netty.buffer.PooledByteBufAllocator.metric()Lio/netty/buffer/PooledByteBufAllocatorMetric;
+  at org.apache.spark.network.util.NettyMemoryMetrics.registerMetrics(NettyMemoryMetrics.java:80)
+  at org.apache.spark.network.util.NettyMemoryMetrics.&amp;lt;init&amp;gt;(NettyMemoryMetrics.java:76)
+  at org.apache.spark.network.client.TransportClientFactory.&amp;lt;init&amp;gt;(TransportClientFactory.java:109)
+  at org.apache.spark.network.TransportContext.createClientFactory(TransportContext.java:99)
+  at org.apache.spark.rpc.netty.NettyRpcEnv.&amp;lt;init&amp;gt;(NettyRpcEnv.scala:71)
+  at org.apache.spark.rpc.netty.NettyRpcEnvFactory.create(NettyRpcEnv.scala:461)
+  at org.apache.spark.rpc.RpcEnv$.create(RpcEnv.scala:57)
+  at org.apache.spark.SparkEnv$.create(SparkEnv.scala:249)
+  at org.apache.spark.SparkEnv$.createDriverEnv(SparkEnv.scala:175)
+  at org.apache.spark.SparkContext.createSparkEnv(SparkContext.scala:256)
+  at org.apache.spark.SparkContext.&amp;lt;init&amp;gt;(SparkContext.scala:423)
+  at org.apache.spark.SparkContext$.getOrCreate(SparkContext.scala:2493)
+  at org.apache.spark.sql.SparkSession$Builder$$anonfun$7.apply(SparkSession.scala:933)
+  at org.apache.spark.sql.SparkSession$Builder$$anonfun$7.apply(SparkSession.scala:924)
+  at scala.Option.getOrElse(Option.scala:121)
+  at org.apache.spark.sql.SparkSession$Builder.getOrCreate(SparkSession.scala:924)
+  at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+  at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+  at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+  at java.lang.reflect.Method.invoke(Method.java:498)
+  at org.apache.zeppelin.spark.BaseSparkScalaInterpreter.spark2CreateContext(BaseSparkScalaInterpreter.scala:259)
+  at org.apache.zeppelin.spark.BaseSparkScalaInterpreter.createSparkContext(BaseSparkScalaInterpreter.scala:178)
+  at org.apache.zeppelin.spark.SparkScala211Interpreter.open(SparkScala211Interpreter.scala:89)
+  at org.apache.zeppelin.spark.NewSparkInterpreter.open(NewSparkInterpreter.java:102)
+  at org.apache.zeppelin.spark.SparkInterpreter.open(SparkInterpreter.java:62)
+  at org.apache.zeppelin.interpreter.LazyOpenInterpreter.open(LazyOpenInterpreter.java:69)
+  at org.apache.zeppelin.interpreter.remote.RemoteInterpreterServer$InterpretJob.jobRun(RemoteInterpreterServer.java:616)
+  at org.apache.zeppelin.scheduler.Job.run(Job.java:188)
+  at org.apache.zeppelin.scheduler.FIFOScheduler$1.run(FIFOScheduler.java:140)
+  at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+  at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+  at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.access$201(ScheduledThreadPoolExecutor.java:180)
+  at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:293)
+  at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+  at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+  at java.lang.Thread.run(Thread.java:748)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;zeppelin netty jar 的版本 :&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/zeppelin/zeppelin-0.8.1-bin-all/lib&amp;gt;ll | grep netty-all
+-rw-r--r--  1 miuser miuser  1779991 Oct 16 11:05 netty-all-4.0.23.Final.jar
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;spark-2.3.1 netty jar 的版本 :&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/opt/spark-2.3.1-bin-hadoop2.7/jars&amp;gt;ll | grep netty-all
+-rw-rw-r--  1 miuser miuser  3780056 Jun  2  2018 netty-all-4.1.17.Final.jar
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;所以把 spark 的 netty jar copy 到 zeppelin&lt;/p&gt;
+
+&lt;p&gt;接著遇到 Jackson 版本問題，一樣把 spark 的 jackson jar 覆蓋到 zeppelin．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;com.fasterxml.jackson.databind.JsonMappingException: Incompatible Jackson version: 2.8.11-1
+  at com.fasterxml.jackson.module.scala.JacksonModule$class.setupModule(JacksonModule.scala:64)
+  at com.fasterxml.jackson.module.scala.DefaultScalaModule.setupModule(DefaultScalaModule.scala:19)
+  at com.fasterxml.jackson.databind.ObjectMapper.registerModule(ObjectMapper.java:747)
+  at org.apache.spark.util.JsonProtocol$.&amp;lt;init&amp;gt;(JsonProtocol.scala:59)
+  at org.apache.spark.util.JsonProtocol$.&amp;lt;clinit&amp;gt;(JsonProtocol.scala)
+  at org.apache.spark.scheduler.EventLoggingListener$.initEventLog(EventLoggingListener.scala:303)
+  at org.apache.spark.scheduler.EventLoggingListener.start(EventLoggingListener.scala:128)
+  at org.apache.spark.SparkContext.&amp;lt;init&amp;gt;(SparkContext.scala:522)
+  at org.apache.spark.SparkContext$.getOrCreate(SparkContext.scala:2493)
+  at org.apache.spark.sql.SparkSession$Builder$$anonfun$7.apply(SparkSession.scala:933)
+  at org.apache.spark.sql.SparkSession$Builder$$anonfun$7.apply(SparkSession.scala:924)
+  at scala.Option.getOrElse(Option.scala:121)
+  at org.apache.spark.sql.SparkSession$Builder.getOrCreate(SparkSession.scala:924)
+  at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+  at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+  at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+  at java.lang.reflect.Method.invoke(Method.java:498)
+  at org.apache.zeppelin.spark.BaseSparkScalaInterpreter.spark2CreateContext(BaseSparkScalaInterpreter.scala:259)
+  at org.apache.zeppelin.spark.BaseSparkScalaInterpreter.createSparkContext(BaseSparkScalaInterpreter.scala:178)
+  at org.apache.zeppelin.spark.SparkScala211Interpreter.open(SparkScala211Interpreter.scala:89)
+  at org.apache.zeppelin.spark.NewSparkInterpreter.open(NewSparkInterpreter.java:102)
+  at org.apache.zeppelin.spark.SparkInterpreter.open(SparkInterpreter.java:62)
+  at org.apache.zeppelin.interpreter.LazyOpenInterpreter.open(LazyOpenInterpreter.java:69)
+  at org.apache.zeppelin.interpreter.remote.RemoteInterpreterServer$InterpretJob.jobRun(RemoteInterpreterServer.java:616)
+  at org.apache.zeppelin.scheduler.Job.run(Job.java:188)
+  at org.apache.zeppelin.scheduler.FIFOScheduler$1.run(FIFOScheduler.java:140)
+  at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+  at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+  at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.access$201(ScheduledThreadPoolExecutor.java:180)
+  at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:293)
+  at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+  at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+  at java.lang.Thread.run(Thread.java:748)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/zeppelin/zeppelin-0.8.1-bin-all/lib&amp;gt;ll | grep jackson
+-rw-r--r--  1 miuser miuser     5990 Oct 16 14:40 google-http-client-jackson-1.23.0.jar
+-rw-r--r--  1 miuser miuser     6675 Oct 16 14:40 google-http-client-jackson2-1.23.0.jar
+-rw-r--r--  1 miuser miuser    55784 Oct 16 11:58 jackson-annotations-2.8.0.jar
+-rw-r--r--  1 miuser miuser   282634 Oct 16 14:38 jackson-core-2.8.10.jar
+-rw-r--r--  1 miuser miuser   232248 Oct 16 10:56 jackson-core-asl-1.9.13.jar
+-rw-r--r--  1 miuser miuser  1247444 Oct 16 14:38 jackson-databind-2.8.11.1.jar
+-rw-r--r--  1 miuser miuser    18336 Oct 16 10:57 jackson-jaxrs-1.9.13.jar
+-rw-r--r--  1 miuser miuser   780664 Oct 16 10:56 jackson-mapper-asl-1.9.13.jar
+-rw-r--r--  1 miuser miuser    34610 Oct 16 14:38 jackson-module-jaxb-annotations-2.8.10.jar
+-rw-r--r--  1 miuser miuser    27084 Oct 16 10:57 jackson-xc-1.9.13.jar
+-rw-r--r--  1 miuser miuser    73055 Oct 16 14:38 jersey-media-json-jackson-2.27.jar
+/zeppelin/zeppelin-0.8.1-bin-all/lib&amp;gt;rm -f jackson-*
+/zeppelin/zeppelin-0.8.1-bin-all/lib&amp;gt;cp /opt/spark-2.3.1-bin-hadoop2.7/jars/jackson-* .
+/zeppelin/zeppelin-0.8.1-bin-all/lib&amp;gt;ll | grep jackson
+-rw-r--r--  1 miuser miuser     5990 Oct 16 14:40 google-http-client-jackson-1.23.0.jar
+-rw-r--r--  1 miuser miuser     6675 Oct 16 14:40 google-http-client-jackson2-1.23.0.jar
+-rw-rw-r--  1 miuser miuser    46986 Mar 12 11:35 jackson-annotations-2.6.7.jar
+-rw-rw-r--  1 miuser miuser   258919 Mar 12 11:35 jackson-core-2.6.7.jar
+-rw-rw-r--  1 miuser miuser   232248 Mar 12 11:35 jackson-core-asl-1.9.13.jar
+-rw-rw-r--  1 miuser miuser  1165323 Mar 12 11:35 jackson-databind-2.6.7.1.jar
+-rw-rw-r--  1 miuser miuser   320444 Mar 12 11:35 jackson-dataformat-yaml-2.6.7.jar
+-rw-rw-r--  1 miuser miuser    18336 Mar 12 11:35 jackson-jaxrs-1.9.13.jar
+-rw-rw-r--  1 miuser miuser   780664 Mar 12 11:35 jackson-mapper-asl-1.9.13.jar
+-rw-rw-r--  1 miuser miuser    32612 Mar 12 11:35 jackson-module-jaxb-annotations-2.6.7.jar
+-rw-rw-r--  1 miuser miuser    42858 Mar 12 11:35 jackson-module-paranamer-2.7.9.jar
+-rw-rw-r--  1 miuser miuser   515645 Mar 12 11:35 jackson-module-scala_2.11-2.6.7.1.jar
+-rw-rw-r--  1 miuser miuser    27084 Mar 12 11:35 jackson-xc-1.9.13.jar
+-rw-r--r--  1 miuser miuser    73055 Oct 16 14:38 jersey-media-json-jackson-2.27.jar
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://blog.csdn.net/a376554764/article/details/84672444&quot;&gt;zeppelin 整 spark 問題&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;跑 yarn-cluster mode :&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/zeppelin/zeppelin_9.jpg&quot; alt=&quot;zeppelin_9.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;把 spark-cassandra-connector_2.11-2.3.2.jar 丟到各台的 spark lib 底下 :&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/opt/spark-2.3.1-bin-hadoop2.7/jars&amp;gt;ll | grep cassandra
+-rw-r--r--  1 miuser miuser  8539058 Mar 12 15:28 spark-cassandra-connector_2.11-2.3.2.jar
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;import com.datastax.spark.connector._
+
+val findLabelIndex = &quot;3&quot;
+val cassandraKeyspace = &quot;test1&quot;
+val cassandraTable = &quot;test&quot;
+val allPersons = spark.sparkContext.cassandraTable[(String,Map[String,Double])](cassandraKeyspace,cassandraTable).select(&quot;id&quot;,&quot;labels&quot;).filter(l =&amp;gt; l._2.contains(findLabelIndex)).toDF(&quot;id&quot;,&quot;labels&quot;)
+
+allPersons.registerTempTable(&quot;allPersons&quot;)
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;將 zeppelin 的 spark notebook 跑在 yarn 上面 :&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/zeppelin/zeppelin_10.jpg&quot; alt=&quot;zeppelin_10.jpg&quot; height=&quot;80%&quot; width=&quot;80%&quot; /&gt;&lt;/p&gt;
 
 </description>
         <pubDate>Thu, 07 Mar 2019 00:00:00 +0800</pubDate>

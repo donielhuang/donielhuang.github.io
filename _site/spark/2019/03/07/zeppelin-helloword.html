@@ -248,6 +248,193 @@ select id,labels from allPersons where labels like '%36%' or labels like '%92%'
 
 <p><img src="/static/img/zeppelin/zeppelin_8.jpg" alt="zeppelin_8.jpg" height="80%" width="80%" /></p>
 
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./bin/install-interpreter.sh --name "interpreter-name" --artifact org.apache.zeppelin:spark2-shims:0.8.0 
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/zeppelin-0.8.1-bin-all/bin&gt;./install-interpreter.sh --name "interpreter-name" --artifact org.apache.zeppelin:spark2-shims:0.8.0
+Java HotSpot(TM) 64-Bit Server VM warning: ignoring option MaxPermSize=512m; support was removed in 8.0
+SLF4J: Class path contains multiple SLF4J bindings.
+SLF4J: Found binding in [jar:file:/home/miuser/enrich/zeppelin/zeppelin-0.8.1-bin-all/lib/interpreter/slf4j-log4j12-1.7.10.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: Found binding in [jar:file:/home/miuser/enrich/zeppelin/zeppelin-0.8.1-bin-all/lib/slf4j-log4j12-1.7.10.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: See http://www.slf4j.org/codes.html#multiple_bindings for an explanation.
+SLF4J: Actual binding is of type [org.slf4j.impl.Log4jLoggerFactory]
+Install interpreter-name(org.apache.zeppelin:spark2-shims:0.8.0) to /home/miuser/enrich/zeppelin/zeppelin-0.8.1-bin-all/interpreter/interpreter-name ...
+Interpreter interpreter-name installed under /home/miuser/enrich/zeppelin/zeppelin-0.8.1-bin-all/interpreter/interpreter-name.
+
+1. Restart Zeppelin
+2. Create interpreter setting in 'Interpreter' menu on Zeppelin GUI
+3. Then you can bind the interpreter on your note
+miuser@dmpn1:~/enrich/zeppelin/zeppelin-0.8.1-bin-all/bin&gt;ll
+total 33
+
+</code></pre></div></div>
+
+<p>如果環境是 spark 1 是使用 sc :</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val allPersons = sc.cassandraTable[(String,Map[String,Double])]("miks1","twmperson").select("id","labels").filter(l =&gt; l._2.contains("92")).toDF("id","labels")
+</code></pre></div></div>
+<p>如果環境是 spark 2 記得改成使用 spark(sparksession)，否則會有 dependency 的問題 :</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import com.datastax.spark.connector._
+
+val allPersons = spark.sparkContext.cassandraTable[(String,Map[String,Double])]("miks1","twmperson").select("id","labels").filter(l =&gt; l._2.contains("92")).toDF("id","labels")
+
+allPersons.registerTempTable("allPersons")
+
+</code></pre></div></div>
+<p>這段很重要 :</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SparkContext, SQLContext and ZeppelinContext are automatically created and exposed as variable names sc, sqlContext and z, respectively, in Scala, Python and R environments. Staring from 0.6.1 SparkSession is available as variable spark when you are using Spark 2.x.
+</code></pre></div></div>
+
+<p>遇到下列的錯誤</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>java.lang.NoSuchMethodError: io.netty.buffer.PooledByteBufAllocator.metric()Lio/netty/buffer/PooledByteBufAllocatorMetric;
+  at org.apache.spark.network.util.NettyMemoryMetrics.registerMetrics(NettyMemoryMetrics.java:80)
+  at org.apache.spark.network.util.NettyMemoryMetrics.&lt;init&gt;(NettyMemoryMetrics.java:76)
+  at org.apache.spark.network.client.TransportClientFactory.&lt;init&gt;(TransportClientFactory.java:109)
+  at org.apache.spark.network.TransportContext.createClientFactory(TransportContext.java:99)
+  at org.apache.spark.rpc.netty.NettyRpcEnv.&lt;init&gt;(NettyRpcEnv.scala:71)
+  at org.apache.spark.rpc.netty.NettyRpcEnvFactory.create(NettyRpcEnv.scala:461)
+  at org.apache.spark.rpc.RpcEnv$.create(RpcEnv.scala:57)
+  at org.apache.spark.SparkEnv$.create(SparkEnv.scala:249)
+  at org.apache.spark.SparkEnv$.createDriverEnv(SparkEnv.scala:175)
+  at org.apache.spark.SparkContext.createSparkEnv(SparkContext.scala:256)
+  at org.apache.spark.SparkContext.&lt;init&gt;(SparkContext.scala:423)
+  at org.apache.spark.SparkContext$.getOrCreate(SparkContext.scala:2493)
+  at org.apache.spark.sql.SparkSession$Builder$$anonfun$7.apply(SparkSession.scala:933)
+  at org.apache.spark.sql.SparkSession$Builder$$anonfun$7.apply(SparkSession.scala:924)
+  at scala.Option.getOrElse(Option.scala:121)
+  at org.apache.spark.sql.SparkSession$Builder.getOrCreate(SparkSession.scala:924)
+  at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+  at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+  at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+  at java.lang.reflect.Method.invoke(Method.java:498)
+  at org.apache.zeppelin.spark.BaseSparkScalaInterpreter.spark2CreateContext(BaseSparkScalaInterpreter.scala:259)
+  at org.apache.zeppelin.spark.BaseSparkScalaInterpreter.createSparkContext(BaseSparkScalaInterpreter.scala:178)
+  at org.apache.zeppelin.spark.SparkScala211Interpreter.open(SparkScala211Interpreter.scala:89)
+  at org.apache.zeppelin.spark.NewSparkInterpreter.open(NewSparkInterpreter.java:102)
+  at org.apache.zeppelin.spark.SparkInterpreter.open(SparkInterpreter.java:62)
+  at org.apache.zeppelin.interpreter.LazyOpenInterpreter.open(LazyOpenInterpreter.java:69)
+  at org.apache.zeppelin.interpreter.remote.RemoteInterpreterServer$InterpretJob.jobRun(RemoteInterpreterServer.java:616)
+  at org.apache.zeppelin.scheduler.Job.run(Job.java:188)
+  at org.apache.zeppelin.scheduler.FIFOScheduler$1.run(FIFOScheduler.java:140)
+  at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+  at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+  at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.access$201(ScheduledThreadPoolExecutor.java:180)
+  at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:293)
+  at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+  at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+  at java.lang.Thread.run(Thread.java:748)
+</code></pre></div></div>
+
+<p>zeppelin netty jar 的版本 :</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/zeppelin/zeppelin-0.8.1-bin-all/lib&gt;ll | grep netty-all
+-rw-r--r--  1 miuser miuser  1779991 Oct 16 11:05 netty-all-4.0.23.Final.jar
+</code></pre></div></div>
+
+<p>spark-2.3.1 netty jar 的版本 :</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/opt/spark-2.3.1-bin-hadoop2.7/jars&gt;ll | grep netty-all
+-rw-rw-r--  1 miuser miuser  3780056 Jun  2  2018 netty-all-4.1.17.Final.jar
+</code></pre></div></div>
+
+<p>所以把 spark 的 netty jar copy 到 zeppelin</p>
+
+<p>接著遇到 Jackson 版本問題，一樣把 spark 的 jackson jar 覆蓋到 zeppelin．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>com.fasterxml.jackson.databind.JsonMappingException: Incompatible Jackson version: 2.8.11-1
+  at com.fasterxml.jackson.module.scala.JacksonModule$class.setupModule(JacksonModule.scala:64)
+  at com.fasterxml.jackson.module.scala.DefaultScalaModule.setupModule(DefaultScalaModule.scala:19)
+  at com.fasterxml.jackson.databind.ObjectMapper.registerModule(ObjectMapper.java:747)
+  at org.apache.spark.util.JsonProtocol$.&lt;init&gt;(JsonProtocol.scala:59)
+  at org.apache.spark.util.JsonProtocol$.&lt;clinit&gt;(JsonProtocol.scala)
+  at org.apache.spark.scheduler.EventLoggingListener$.initEventLog(EventLoggingListener.scala:303)
+  at org.apache.spark.scheduler.EventLoggingListener.start(EventLoggingListener.scala:128)
+  at org.apache.spark.SparkContext.&lt;init&gt;(SparkContext.scala:522)
+  at org.apache.spark.SparkContext$.getOrCreate(SparkContext.scala:2493)
+  at org.apache.spark.sql.SparkSession$Builder$$anonfun$7.apply(SparkSession.scala:933)
+  at org.apache.spark.sql.SparkSession$Builder$$anonfun$7.apply(SparkSession.scala:924)
+  at scala.Option.getOrElse(Option.scala:121)
+  at org.apache.spark.sql.SparkSession$Builder.getOrCreate(SparkSession.scala:924)
+  at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+  at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+  at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+  at java.lang.reflect.Method.invoke(Method.java:498)
+  at org.apache.zeppelin.spark.BaseSparkScalaInterpreter.spark2CreateContext(BaseSparkScalaInterpreter.scala:259)
+  at org.apache.zeppelin.spark.BaseSparkScalaInterpreter.createSparkContext(BaseSparkScalaInterpreter.scala:178)
+  at org.apache.zeppelin.spark.SparkScala211Interpreter.open(SparkScala211Interpreter.scala:89)
+  at org.apache.zeppelin.spark.NewSparkInterpreter.open(NewSparkInterpreter.java:102)
+  at org.apache.zeppelin.spark.SparkInterpreter.open(SparkInterpreter.java:62)
+  at org.apache.zeppelin.interpreter.LazyOpenInterpreter.open(LazyOpenInterpreter.java:69)
+  at org.apache.zeppelin.interpreter.remote.RemoteInterpreterServer$InterpretJob.jobRun(RemoteInterpreterServer.java:616)
+  at org.apache.zeppelin.scheduler.Job.run(Job.java:188)
+  at org.apache.zeppelin.scheduler.FIFOScheduler$1.run(FIFOScheduler.java:140)
+  at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+  at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+  at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.access$201(ScheduledThreadPoolExecutor.java:180)
+  at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:293)
+  at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+  at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+  at java.lang.Thread.run(Thread.java:748)
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/zeppelin/zeppelin-0.8.1-bin-all/lib&gt;ll | grep jackson
+-rw-r--r--  1 miuser miuser     5990 Oct 16 14:40 google-http-client-jackson-1.23.0.jar
+-rw-r--r--  1 miuser miuser     6675 Oct 16 14:40 google-http-client-jackson2-1.23.0.jar
+-rw-r--r--  1 miuser miuser    55784 Oct 16 11:58 jackson-annotations-2.8.0.jar
+-rw-r--r--  1 miuser miuser   282634 Oct 16 14:38 jackson-core-2.8.10.jar
+-rw-r--r--  1 miuser miuser   232248 Oct 16 10:56 jackson-core-asl-1.9.13.jar
+-rw-r--r--  1 miuser miuser  1247444 Oct 16 14:38 jackson-databind-2.8.11.1.jar
+-rw-r--r--  1 miuser miuser    18336 Oct 16 10:57 jackson-jaxrs-1.9.13.jar
+-rw-r--r--  1 miuser miuser   780664 Oct 16 10:56 jackson-mapper-asl-1.9.13.jar
+-rw-r--r--  1 miuser miuser    34610 Oct 16 14:38 jackson-module-jaxb-annotations-2.8.10.jar
+-rw-r--r--  1 miuser miuser    27084 Oct 16 10:57 jackson-xc-1.9.13.jar
+-rw-r--r--  1 miuser miuser    73055 Oct 16 14:38 jersey-media-json-jackson-2.27.jar
+/zeppelin/zeppelin-0.8.1-bin-all/lib&gt;rm -f jackson-*
+/zeppelin/zeppelin-0.8.1-bin-all/lib&gt;cp /opt/spark-2.3.1-bin-hadoop2.7/jars/jackson-* .
+/zeppelin/zeppelin-0.8.1-bin-all/lib&gt;ll | grep jackson
+-rw-r--r--  1 miuser miuser     5990 Oct 16 14:40 google-http-client-jackson-1.23.0.jar
+-rw-r--r--  1 miuser miuser     6675 Oct 16 14:40 google-http-client-jackson2-1.23.0.jar
+-rw-rw-r--  1 miuser miuser    46986 Mar 12 11:35 jackson-annotations-2.6.7.jar
+-rw-rw-r--  1 miuser miuser   258919 Mar 12 11:35 jackson-core-2.6.7.jar
+-rw-rw-r--  1 miuser miuser   232248 Mar 12 11:35 jackson-core-asl-1.9.13.jar
+-rw-rw-r--  1 miuser miuser  1165323 Mar 12 11:35 jackson-databind-2.6.7.1.jar
+-rw-rw-r--  1 miuser miuser   320444 Mar 12 11:35 jackson-dataformat-yaml-2.6.7.jar
+-rw-rw-r--  1 miuser miuser    18336 Mar 12 11:35 jackson-jaxrs-1.9.13.jar
+-rw-rw-r--  1 miuser miuser   780664 Mar 12 11:35 jackson-mapper-asl-1.9.13.jar
+-rw-rw-r--  1 miuser miuser    32612 Mar 12 11:35 jackson-module-jaxb-annotations-2.6.7.jar
+-rw-rw-r--  1 miuser miuser    42858 Mar 12 11:35 jackson-module-paranamer-2.7.9.jar
+-rw-rw-r--  1 miuser miuser   515645 Mar 12 11:35 jackson-module-scala_2.11-2.6.7.1.jar
+-rw-rw-r--  1 miuser miuser    27084 Mar 12 11:35 jackson-xc-1.9.13.jar
+-rw-r--r--  1 miuser miuser    73055 Oct 16 14:38 jersey-media-json-jackson-2.27.jar
+</code></pre></div></div>
+
+<p><a href="https://blog.csdn.net/a376554764/article/details/84672444">zeppelin 整 spark 問題</a></p>
+
+<p>跑 yarn-cluster mode :</p>
+
+<p><img src="/static/img/zeppelin/zeppelin_9.jpg" alt="zeppelin_9.jpg" height="80%" width="80%" /></p>
+
+<p>把 spark-cassandra-connector_2.11-2.3.2.jar 丟到各台的 spark lib 底下 :</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/opt/spark-2.3.1-bin-hadoop2.7/jars&gt;ll | grep cassandra
+-rw-r--r--  1 miuser miuser  8539058 Mar 12 15:28 spark-cassandra-connector_2.11-2.3.2.jar
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import com.datastax.spark.connector._
+
+val findLabelIndex = "3"
+val cassandraKeyspace = "test1"
+val cassandraTable = "test"
+val allPersons = spark.sparkContext.cassandraTable[(String,Map[String,Double])](cassandraKeyspace,cassandraTable).select("id","labels").filter(l =&gt; l._2.contains(findLabelIndex)).toDF("id","labels")
+
+allPersons.registerTempTable("allPersons")
+
+</code></pre></div></div>
+
+<p>將 zeppelin 的 spark notebook 跑在 yarn 上面 :</p>
+
+<p><img src="/static/img/zeppelin/zeppelin_10.jpg" alt="zeppelin_10.jpg" height="80%" width="80%" /></p>
+
 
       </article>
       <hr>

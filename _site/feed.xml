@@ -5,9 +5,64 @@
     <description>Daniel's Blogs</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 15 May 2019 13:16:03 +0800</pubDate>
-    <lastBuildDate>Wed, 15 May 2019 13:16:03 +0800</lastBuildDate>
+    <pubDate>Tue, 10 Sep 2019 15:31:10 +0800</pubDate>
+    <lastBuildDate>Tue, 10 Sep 2019 15:31:10 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
+    
+      <item>
+        <title>Spark Cassandra Spanbykey</title>
+        <description>&lt;h3 id=&quot;spark-cassandra-spanbykey&quot;&gt;spark cassandra spanByKey&lt;/h3&gt;
+
+&lt;p&gt;原本有一段程式是從 cassandra 把資料查出來，轉成 person 物件後，再根據 person id 當作 key，然後 reduceByKey 後做 Person merge．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val persons = {
+  sc.cassandraTable[PersonByTime](cassandraKeyspace, cassandraTableName).keyBy[(String, String, Long)](&quot;groupid&quot;,&quot;id&quot;,&quot;inserttime&quot;).map(p =&amp;gt; {
+    (p._1._2 , PersonParser.modelString(p._2.personString))
+  }).reduceByKey {
+    Person.merge
+  }.filter(p =&amp;gt; !&quot;&quot;.equals(p._1)).coalesce(500)
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;執行的結果 shuffle write 數量非常高，有可能是因為 reduceByKey 的關係．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/spark/sparkCassandraSpanbykey/sparkCassandraSpanbykey_1.jpg&quot; alt=&quot;sparkCassandraSpanbykey_1.jpg&quot; height=&quot;400px&quot; width=&quot;800px&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;於是使用 spark cassandra connector 提供的 spanByKey 根據 groupid 以及 id 來轉換成 spark rdd，等於說根據這樣的 partition 該 partition 的資料已經都是要 merge 的資料了．
+所以不需要再 reduceByKey 只要把 partition 的 person 全部都 merge 起來．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val persons = {
+  sc.cassandraTable[PersonByTime](cassandraKeyspace, cassandraTableName).keyBy[(String, String)](&quot;groupid&quot;,&quot;id&quot;).spanByKey.coalesce(500).mapPartitions(
+   iter =&amp;gt; {
+      for(p &amp;lt;- iter) yield {
+        val groupKey = p._1._1
+        val personKey = p._1._2
+        val person = p._2.foldLeft(new Person(groupid = groupKey,id = personKey)) {
+          case (p , ps) =&amp;gt; {
+            Person.merge(p , PersonParser.modelString(ps.personString))
+          }
+        }
+        (personKey , person)
+      }
+    }
+  )
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;這樣修改後 shuffle write 從 84.4 G 變成 3.1 M．&lt;/p&gt;
+
+&lt;p&gt;官網解釋 &lt;a href=&quot;https://github.com/datastax/spark-cassandra-connector/blob/master/doc/3_selection.md&quot;&gt;spanByKey&lt;/a&gt; :&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;The methods spanBy and spanByKey iterate every Spark partition locally and put every RDD item into the same group as long as the key doesn't change.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+</description>
+        <pubDate>Tue, 10 Sep 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/spark/2019/09/10/spark-cassandra-spanByKey.html</link>
+        <guid isPermaLink="true">http://localhost:4000/spark/2019/09/10/spark-cassandra-spanByKey.html</guid>
+        
+        
+        <category>spark</category>
+        
+      </item>
     
       <item>
         <title>Grafana Helloword</title>
@@ -1625,39 +1680,6 @@ MatrixEntry(0,2,0.7652514332541697)
         
         
         <category>spark</category>
-        
-      </item>
-    
-      <item>
-        <title>hello jekyll</title>
-        <description>&lt;h4 id=&quot;目錄架構&quot;&gt;目錄架構&lt;/h4&gt;
-
-&lt;p&gt;jekyll 的目錄結構如下，文章主要放在 _post 目錄裡，圖片、js、css 之類的放在 static 目錄裡．&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/static/img/jekyll_1.jpg&quot; alt=&quot;jekyll_1.jpg&quot; height=&quot;400px&quot; width=&quot;600px&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;寫文章時要先定義好標頭，layout 會對應到 _layouts 目錄，categories 用來對文章進行分類．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;---
-layout: post
-title:  &quot;hello jekyll&quot;
-date:   2015-02-10 15:14:54
-categories: jekyll
-comments: true
----
-
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;再使用 &lt;a href=&quot;https://pages.github.com/&quot;&gt;git page&lt;/a&gt;，把 project commit 到 repositories，畫面結果如下．&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/static/img/jekyll_2.jpg&quot; alt=&quot;jekyll_2.jpg&quot; height=&quot;400px&quot; width=&quot;600px&quot; /&gt;&lt;/p&gt;
-</description>
-        <pubDate>Tue, 10 Feb 2015 23:14:54 +0800</pubDate>
-        <link>http://localhost:4000/jekyll/2015/02/10/welcome-to-jekyll.html</link>
-        <guid isPermaLink="true">http://localhost:4000/jekyll/2015/02/10/welcome-to-jekyll.html</guid>
-        
-        
-        <category>jekyll</category>
         
       </item>
     

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Spark Cassandra Spanbykey</title>
+	<meta name="description" content="spark cassandra spanByKey">
+	
+	<link rel="canonical" href="http://localhost:4000/spark/2019/09/10/spark-cassandra-spanByKey.html">
+	<link rel="alternate" type="application/rss+xml" title="Daniel's Blog" href="http://localhost:4000/feed.xml" />
+	
+	<!-- <link rel="stylesheet" href="/css/main.css"> -->
+    
+    <link rel="stylesheet" type="text/css" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/index.css">
+	<script type="text/javascript" src="/static/js/jquery-1.11.1.min.js"></script>
+	<script type="text/javascript" src="/static/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/css/monokai_sublime.min.css">
+	<script type="text/javascript" src="/static/js/highlight.min.js"></script>
+
+    <!--
+    <link rel="stylesheet" type="text/css" href="http://apps.bdimg.com/libs/bootstrap/3.3.0/css/bootstrap.min.css">
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/jquery/2.1.1/jquery.min.js"></script>
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="http://apps.bdimg.com/libs/highlight.js/8.4/styles/monokai_sublime.min.css">
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/highlight.js/8.4/highlight.min.js"></script>
+    -->
+    
+	<script type="text/javascript" src="/static/js/index.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+ <!--  <body data-spy="scroll" data-target="#myAffix"> -->
+  <body>
+
+    <header>
+
+<!-- navbar -->
+  <nav class="navbar navbar-inverse">
+  <div class="container">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Daniel's Blog</a>
+      <p class="navbar-text"></p>
+    </div>
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+      <ul class="nav navbar-nav navbar-right">
+
+        
+          <li>
+        
+        <a href="/">Home</a></li>
+
+        
+          
+            
+              <li>
+            
+            <a href="/projects/"><span class="glyphicon "></span> Projects</a></li>
+          
+        
+          
+            
+              <li>
+            
+            <a href="/about/"><span class="glyphicon "></span> About</a></li>
+          
+        
+          
+        
+          
+        
+      </ul>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container-fluid -->
+</nav>
+
+</header>
+
+    <div id="main" class="container main">
+      <div class="row">
+  <div id="myArticle" class="col-sm-9">
+    <div class="post-area post">
+      <header>
+        <h1>Spark Cassandra Spanbykey</h1>
+        <p>Sep 10, 2019</p>
+      </header>
+      <hr>
+      <article>
+        <h3 id="spark-cassandra-spanbykey">spark cassandra spanByKey</h3>
+
+<p>原本有一段程式是從 cassandra 把資料查出來，轉成 person 物件後，再根據 person id 當作 key，然後 reduceByKey 後做 Person merge．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val persons = {
+  sc.cassandraTable[PersonByTime](cassandraKeyspace, cassandraTableName).keyBy[(String, String, Long)]("groupid","id","inserttime").map(p =&gt; {
+    (p._1._2 , PersonParser.modelString(p._2.personString))
+  }).reduceByKey {
+    Person.merge
+  }.filter(p =&gt; !"".equals(p._1)).coalesce(500)
+}
+</code></pre></div></div>
+
+<p>執行的結果 shuffle write 數量非常高，有可能是因為 reduceByKey 的關係．</p>
+
+<p><img src="/static/img/spark/sparkCassandraSpanbykey/sparkCassandraSpanbykey_1.jpg" alt="sparkCassandraSpanbykey_1.jpg" height="400px" width="800px" /></p>
+
+<p>於是使用 spark cassandra connector 提供的 spanByKey 根據 groupid 以及 id 來轉換成 spark rdd，等於說根據這樣的 partition 該 partition 的資料已經都是要 merge 的資料了．
+所以不需要再 reduceByKey 只要把 partition 的 person 全部都 merge 起來．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val persons = {
+  sc.cassandraTable[PersonByTime](cassandraKeyspace, cassandraTableName).keyBy[(String, String)]("groupid","id").spanByKey.coalesce(500).mapPartitions(
+   iter =&gt; {
+      for(p &lt;- iter) yield {
+        val groupKey = p._1._1
+        val personKey = p._1._2
+        val person = p._2.foldLeft(new Person(groupid = groupKey,id = personKey)) {
+          case (p , ps) =&gt; {
+            Person.merge(p , PersonParser.modelString(ps.personString))
+          }
+        }
+        (personKey , person)
+      }
+    }
+  )
+}
+</code></pre></div></div>
+
+<p>這樣修改後 shuffle write 從 84.4 G 變成 3.1 M．</p>
+
+<p>官網解釋 <a href="https://github.com/datastax/spark-cassandra-connector/blob/master/doc/3_selection.md">spanByKey</a> :</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>The methods spanBy and spanByKey iterate every Spark partition locally and put every RDD item into the same group as long as the key doesn't change.
+</code></pre></div></div>
+
+      </article>
+      <hr>
+    </div>
+  </div>
+</div>
+    </div>
+
+    
+    <div id="top" data-toggle="tooltip" data-placement="left" title="back to top">
+      <a href="javascript:;">
+        <div class="arrow"></div>
+        <div class="stick"></div>
+      </a>
+    </div>
+
+    <footer class="">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12">
+        <a href="mailto:"><span class="glyphicon glyphicon-envelope"></span> </a>
+          <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span><a href="_posts/spark/2019-09-10-spark-cassandra-spanByKey.md">View source</a></span>
+          <span class="point"> · </span>
+		      <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span>&copy; 2019 Daniel</span>
+      </div>
+    </div>
+  </div>
+</footer>
+  
+  </body>
+</html>

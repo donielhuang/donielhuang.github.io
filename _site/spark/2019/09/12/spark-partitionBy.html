@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Spark Partitionby</title>
+	<meta name="description" content="spark partitionBy測試環境 hadoop cluster :3 台 vm :memory total : 138 GBcore total : 30所以 partition 數最好控制在 3 或 4 倍的話是，90 ~ 40 之間">
+	
+	<link rel="canonical" href="http://localhost:4000/spark/2019/09/12/spark-partitionBy.html">
+	<link rel="alternate" type="application/rss+xml" title="Daniel's Blog" href="http://localhost:4000/feed.xml" />
+	
+	<!-- <link rel="stylesheet" href="/css/main.css"> -->
+    
+    <link rel="stylesheet" type="text/css" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/index.css">
+	<script type="text/javascript" src="/static/js/jquery-1.11.1.min.js"></script>
+	<script type="text/javascript" src="/static/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/css/monokai_sublime.min.css">
+	<script type="text/javascript" src="/static/js/highlight.min.js"></script>
+
+    <!--
+    <link rel="stylesheet" type="text/css" href="http://apps.bdimg.com/libs/bootstrap/3.3.0/css/bootstrap.min.css">
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/jquery/2.1.1/jquery.min.js"></script>
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="http://apps.bdimg.com/libs/highlight.js/8.4/styles/monokai_sublime.min.css">
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/highlight.js/8.4/highlight.min.js"></script>
+    -->
+    
+	<script type="text/javascript" src="/static/js/index.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+ <!--  <body data-spy="scroll" data-target="#myAffix"> -->
+  <body>
+
+    <header>
+
+<!-- navbar -->
+  <nav class="navbar navbar-inverse">
+  <div class="container">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Daniel's Blog</a>
+      <p class="navbar-text"></p>
+    </div>
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+      <ul class="nav navbar-nav navbar-right">
+
+        
+          <li>
+        
+        <a href="/">Home</a></li>
+
+        
+          
+            
+              <li>
+            
+            <a href="/projects/"><span class="glyphicon "></span> Projects</a></li>
+          
+        
+          
+            
+              <li>
+            
+            <a href="/about/"><span class="glyphicon "></span> About</a></li>
+          
+        
+          
+        
+          
+        
+      </ul>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container-fluid -->
+</nav>
+
+</header>
+
+    <div id="main" class="container main">
+      <div class="row">
+  <div id="myArticle" class="col-sm-9">
+    <div class="post-area post">
+      <header>
+        <h1>Spark Partitionby</h1>
+        <p>Sep 12, 2019</p>
+      </header>
+      <hr>
+      <article>
+        <h3 id="spark-partitionby">spark partitionBy</h3>
+<p>測試環境 hadoop cluster :</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>3 台 vm :
+memory total : 138 GB
+core total : 30
+</code></pre></div></div>
+<p>所以 partition 數最好控制在 3 或 4 倍的話是，90 ~ 40 之間</p>
+
+<p>測試約 14.4G 的資料量．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&gt; hdfs dfs -du -s -h /data/pool/stresstest/*
+279.0 K  /data/pool/stresstest/LSR_20190608.csv
+360.7 M  /data/pool/stresstest/LSR_20190609.csv
+4.4 G  /data/pool/stresstest/LSR_20190610.csv
+901.8 M  /data/pool/stresstest/LSR_20190611.csv
+4.4 G  /data/pool/stresstest/LSR_20190701.csv
+4.4 G  /data/pool/stresstest/LSR_20190801.csv
+</code></pre></div></div>
+
+<p>LocationUpdate.scala</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">package</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">twm</span><span class="p">.</span><span class="n">poc</span>
+
+<span class="n">import</span> <span class="n">com</span><span class="p">.</span><span class="n">datastax</span><span class="p">.</span><span class="n">spark</span><span class="p">.</span><span class="n">connector</span><span class="p">.</span><span class="n">_</span>
+<span class="n">import</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">core</span><span class="p">.</span><span class="n">cassandra</span><span class="p">.</span><span class="k">model</span><span class="p">.</span><span class="n">Person</span>
+<span class="n">import</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">core</span><span class="p">.</span><span class="n">mapping</span><span class="p">.</span><span class="n">config</span><span class="p">.{</span><span class="n">DataType</span><span class="p">,</span> <span class="n">EnrichConfig</span><span class="p">}</span>
+<span class="n">import</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">twm</span><span class="p">.</span><span class="n">config</span><span class="p">.</span><span class="n">UpdateSetting</span>
+<span class="n">import</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">twm</span><span class="p">.</span><span class="n">tool</span><span class="p">.{</span><span class="n">JsonInterface</span><span class="p">,</span> <span class="n">PersonParser</span><span class="p">}</span>
+<span class="n">import</span> <span class="n">org</span><span class="p">.</span><span class="n">apache</span><span class="p">.</span><span class="n">spark</span><span class="p">.</span><span class="n">sql</span><span class="p">.</span><span class="n">SparkSession</span>
+<span class="p">/**</span>
+  <span class="p">*</span>
+  <span class="p">*</span>
+  <span class="p">*</span> <span class="n">spark</span><span class="p">-</span><span class="n">submit</span> <span class="p">--</span><span class="n">class</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">twm</span><span class="p">.</span><span class="n">poc</span><span class="p">.</span><span class="n">LocationUpdate</span> <span class="p">--</span><span class="n">master</span> <span class="n">yarn</span> <span class="p">--</span><span class="n">deploy</span><span class="p">-</span><span class="n">mode</span> <span class="n">cluster</span> <span class="p">--</span><span class="n">driver</span><span class="p">-</span><span class="n">memory</span> <span class="m">4</span><span class="n">g</span> <span class="p">--</span><span class="n">executor</span><span class="p">-</span><span class="n">memory</span> <span class="m">10</span><span class="n">g</span> <span class="p">--</span><span class="n">executor</span><span class="p">-</span><span class="n">cores</span> <span class="m">2</span> <span class="p">--</span><span class="n">num</span><span class="p">-</span><span class="n">executors</span> <span class="m">6</span> <span class="n">enrich</span><span class="p">-</span><span class="m">5.0.3</span><span class="p">.</span><span class="n">jar</span> <span class="p">/</span><span class="n">data</span><span class="p">/</span><span class="n">pool</span><span class="p">/</span><span class="n">stresstest</span><span class="p">/</span><span class="n">LSR</span><span class="p">*</span> <span class="p">/</span><span class="n">data</span><span class="p">/</span><span class="n">pool</span><span class="p">/</span><span class="n">stresstest</span><span class="p">/</span><span class="n">dailyPerson</span>
+  <span class="p">*</span>
+  <span class="p">*</span> <span class="p">/</span><span class="n">data</span><span class="p">/</span><span class="n">pool</span><span class="p">/</span><span class="n">daily</span><span class="p">/</span><span class="m">20190608</span>
+  <span class="p">*</span>
+  <span class="p">*</span> <span class="p">*/</span>
+<span class="n">object</span> <span class="n">LocationUpdate</span> <span class="p">{</span>
+
+  <span class="n">def</span> <span class="n">main</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="k">Array</span><span class="p">[</span><span class="k">String</span><span class="p">]):</span> <span class="n">Unit</span> <span class="p">=</span> <span class="p">{</span>
+
+    <span class="n">val</span> <span class="n">locationPath</span> <span class="p">=</span> <span class="n">args</span><span class="p">(</span><span class="m">0</span><span class="p">)</span>
+    <span class="n">val</span> <span class="n">dailyPersonOutputPath</span> <span class="p">=</span> <span class="n">args</span><span class="p">(</span><span class="m">1</span><span class="p">)</span>
+
+    <span class="n">val</span> <span class="n">spark</span><span class="p">:</span> <span class="n">SparkSession</span> <span class="p">=</span> <span class="n">SparkSession</span><span class="p">.</span><span class="n">builder</span><span class="p">()</span>
+      <span class="p">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.sql.warehouse.dir"</span><span class="p">,</span> <span class="s2">"/tmp"</span><span class="p">)</span>
+      <span class="p">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.cassandra.connection.host"</span><span class="p">,</span> <span class="n">EnrichConfig</span><span class="p">.</span><span class="n">CASSANDRA_IPS</span><span class="p">)</span>
+      <span class="p">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.cassandra.auth.username"</span><span class="p">,</span> <span class="n">EnrichConfig</span><span class="p">.</span><span class="n">CASSANDRA_USER</span><span class="p">)</span>
+      <span class="p">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.cassandra.auth.password"</span><span class="p">,</span> <span class="n">EnrichConfig</span><span class="p">.</span><span class="n">CASSANDRA_PSWD</span><span class="p">)</span>
+      <span class="p">.</span><span class="n">getOrCreate</span><span class="p">()</span>
+
+    <span class="n">val</span> <span class="n">sc</span> <span class="p">=</span> <span class="n">spark</span><span class="p">.</span><span class="n">sparkContext</span>
+
+    <span class="n">val</span> <span class="n">setting</span> <span class="p">=</span> <span class="n">new</span> <span class="n">UpdateSetting</span><span class="p">(</span>
+      <span class="n">dataType</span> <span class="p">=</span> <span class="n">DataType</span><span class="p">.</span><span class="n">LOCATION</span> <span class="p">,</span>
+      <span class="n">labelCritDir</span> <span class="p">=</span> <span class="n">EnrichConfig</span><span class="p">.</span><span class="n">LABEL_CRIT_DIR</span>
+    <span class="p">)</span>
+
+    <span class="n">val</span> <span class="n">jsonFile</span> <span class="p">=</span> <span class="n">sc</span><span class="p">.</span><span class="n">textFile</span><span class="p">(</span><span class="n">setting</span><span class="p">.</span><span class="n">labelCritDir</span><span class="p">).</span><span class="n">collect</span><span class="p">.</span><span class="n">mkString</span><span class="p">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">" "</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span>
+    <span class="n">val</span> <span class="n">profileSink</span> <span class="p">=</span> <span class="n">sc</span><span class="p">.</span><span class="n">broadcast</span><span class="p">(</span><span class="n">JsonInterface</span><span class="p">.</span><span class="n">json2ProfileCritUnits</span><span class="p">(</span><span class="n">JsonInterface</span><span class="p">.</span><span class="n">readJSON</span><span class="p">(</span><span class="n">jsonFile</span><span class="p">)))</span>
+
+    <span class="n">val</span> <span class="n">repartitionLocationRdd</span> <span class="p">=</span> <span class="n">sc</span><span class="p">.</span><span class="n">textFile</span><span class="p">(</span><span class="n">locationPath</span><span class="p">).</span><span class="n">flatMap</span><span class="p">(</span>
+      <span class="n">str</span> <span class="p">=&gt;</span> <span class="p">{</span>
+        <span class="n">PersonParser</span><span class="p">.</span><span class="n">stringToPerson</span><span class="p">(</span><span class="n">str</span><span class="p">,</span><span class="n">DataType</span><span class="p">.</span><span class="n">LOCATION</span> <span class="p">,</span><span class="n">profileSink</span><span class="p">)</span>
+      <span class="p">}</span>
+    <span class="p">)</span>
+
+    <span class="n">val</span> <span class="n">locationRdd</span> <span class="p">=</span> <span class="n">repartitionLocationRdd</span><span class="p">.</span><span class="n">reduceByKey</span><span class="p">{</span>
+      <span class="n">Person</span><span class="p">.</span><span class="n">merge</span>
+    <span class="p">}.</span><span class="n">map</span><span class="p">(</span><span class="n">_</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">toString</span><span class="p">).</span><span class="n">cache</span><span class="p">()</span>
+    
+    <span class="n">locationRdd</span><span class="p">.</span><span class="n">saveAsTextFile</span><span class="p">(</span><span class="n">dailyPersonOutputPath</span><span class="p">)</span>
+
+
+    <span class="n">val</span> <span class="n">totalInsertPerson</span> <span class="p">=</span> <span class="n">sc</span><span class="p">.</span><span class="n">textFile</span><span class="p">(</span><span class="n">dailyPersonOutputPath</span><span class="p">).</span><span class="n">map</span><span class="p">(</span>
+      <span class="n">str</span> <span class="p">=&gt;</span> <span class="p">{</span>
+        <span class="n">val</span> <span class="n">p</span> <span class="p">=</span> <span class="n">PersonParser</span><span class="p">.</span><span class="n">modelString</span><span class="p">(</span><span class="n">str</span><span class="p">)</span>
+        <span class="n">p</span><span class="p">.</span><span class="n">id</span> <span class="p">-&gt;</span> <span class="n">p</span>
+      <span class="p">}</span>
+    <span class="p">).</span><span class="n">reduceByKey</span> <span class="p">{</span>
+      <span class="n">Person</span><span class="p">.</span><span class="n">merge</span>
+    <span class="p">}.</span><span class="n">map</span><span class="p">(</span><span class="n">p</span> <span class="p">=&gt;</span> <span class="p">{</span>
+      <span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">groupid</span> <span class="p">,</span> <span class="n">p</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">id</span> <span class="p">,</span> <span class="p">(</span><span class="nf">System</span><span class="p">.</span><span class="n">currentTimeMillis</span><span class="p">()/</span><span class="m">1000</span><span class="p">)</span> <span class="p">,</span> <span class="n">p</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">toString</span><span class="p">)</span>
+    <span class="p">}).</span><span class="n">cache</span><span class="p">()</span>
+
+    <span class="n">totalInsertPerson</span><span class="p">.</span><span class="n">saveToCassandra</span><span class="p">(</span><span class="n">EnrichConfig</span><span class="p">.</span><span class="n">CASSANDRA_KEYSPACE</span> <span class="p">,</span> <span class="s2">"person_by_string_time"</span><span class="p">)</span>
+  <span class="p">}</span>
+
+<span class="p">}</span>
+
+</code></pre></div></div>
+<p>執行結果約 27 min</p>
+
+<p><img src="/static/img/spark/sparkPartitionBy/sparkPartitionBy_1.jpg" alt="sparkPartitionBy_1.jpg" height="400px" width="800px" /></p>
+
+<p>客製 TwmPersonPartitioner :</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">package</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">twm</span><span class="p">.</span><span class="n">job</span>
+
+<span class="n">import</span> <span class="n">org</span><span class="p">.</span><span class="n">apache</span><span class="p">.</span><span class="n">spark</span><span class="p">.</span><span class="n">Partitioner</span>
+
+<span class="n">class</span> <span class="n">TwmPersonPartitioner</span><span class="p">(</span><span class="n">partitions</span><span class="p">:</span><span class="n">Int</span><span class="p">)</span> <span class="n">extends</span> <span class="n">Partitioner</span> <span class="p">{</span>
+
+  <span class="n">override</span> <span class="n">def</span> <span class="n">numPartitions</span><span class="p">:</span> <span class="n">Int</span> <span class="p">=</span> <span class="n">partitions</span>
+
+  <span class="n">override</span> <span class="n">def</span> <span class="n">getPartition</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="n">Any</span><span class="p">):</span> <span class="n">Int</span> <span class="p">=</span> <span class="p">{</span>
+
+    <span class="n">val</span> <span class="n">personId</span> <span class="p">=</span> <span class="n">key</span><span class="p">.</span><span class="n">asInstanceOf</span><span class="p">[</span><span class="k">String</span><span class="p">].</span><span class="n">replace</span><span class="p">(</span><span class="s2">"hash:"</span> <span class="p">,</span> <span class="s2">""</span><span class="p">)</span>
+
+    <span class="p">//</span><span class="m">0</span><span class="p">~</span><span class="m">99</span> <span class="m">2</span><span class="err">位數</span>
+    <span class="n">val</span> <span class="n">groupId</span> <span class="p">=</span> <span class="k">if</span><span class="p">(</span><span class="s2">""</span><span class="p">.</span><span class="n">equals</span><span class="p">(</span><span class="n">personId</span><span class="p">.</span><span class="nf">trim</span><span class="p">)</span> <span class="p">||</span> <span class="n">personId</span> <span class="p">==</span> <span class="n">null</span><span class="p">)</span> <span class="p">{</span>
+      <span class="s2">"0"</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">personId</span><span class="p">.</span><span class="n">length</span> <span class="p">&lt;</span> <span class="m">3</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">personId</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+      <span class="n">personId</span><span class="p">.</span><span class="n">substring</span><span class="p">(</span><span class="n">personId</span><span class="p">.</span><span class="n">length</span> <span class="p">-</span> <span class="m">2</span><span class="p">)</span>
+    <span class="p">}</span>
+
+    <span class="p">/*</span>
+    <span class="p">//</span> <span class="m">0</span><span class="p">~</span><span class="m">9999</span> <span class="m">4</span><span class="err">位數</span>
+    <span class="n">val</span> <span class="n">groupId</span> <span class="p">=</span> <span class="k">if</span><span class="p">(</span><span class="s2">""</span><span class="p">.</span><span class="n">equals</span><span class="p">(</span><span class="n">personId</span><span class="p">.</span><span class="nf">trim</span><span class="p">)</span> <span class="p">||</span> <span class="n">personId</span> <span class="p">==</span> <span class="n">null</span><span class="p">)</span> <span class="p">{</span>
+      <span class="s2">"0"</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">personId</span><span class="p">.</span><span class="n">length</span> <span class="p">&lt;</span> <span class="m">5</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">personId</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+      <span class="n">personId</span><span class="p">.</span><span class="n">substring</span><span class="p">(</span><span class="n">personId</span><span class="p">.</span><span class="n">length</span> <span class="p">-</span> <span class="m">4</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="p">*/</span>
+
+    <span class="p">/*</span>
+    <span class="p">//</span><span class="m">0</span><span class="p">~</span><span class="m">999999</span> <span class="m">6</span><span class="err">位數</span>
+    <span class="n">val</span> <span class="n">groupId</span> <span class="p">=</span> <span class="k">if</span><span class="p">(</span><span class="s2">""</span><span class="p">.</span><span class="n">equals</span><span class="p">(</span><span class="n">personId</span><span class="p">.</span><span class="nf">trim</span><span class="p">)</span> <span class="p">||</span> <span class="n">personId</span> <span class="p">==</span> <span class="n">null</span><span class="p">)</span> <span class="p">{</span>
+      <span class="s2">"0"</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">personId</span><span class="p">.</span><span class="n">length</span> <span class="p">&lt;</span> <span class="m">7</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">personId</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+      <span class="n">personId</span><span class="p">.</span><span class="n">substring</span><span class="p">(</span><span class="n">personId</span><span class="p">.</span><span class="n">length</span> <span class="p">-</span> <span class="m">6</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="p">*/</span>
+
+    <span class="n">groupId</span><span class="p">.</span><span class="n">toInt</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>在使用 partitionBy 分 partition 100 個</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>val repartitionLocationRdd = sc.textFile(locationPath).flatMap(
+  str =&gt; {
+    PersonParser.stringToPerson(str,DataType.LOCATION ,profileSink)
+  }
+).partitionBy(new TwmPersonPartitioner(100)) // 這邊的數量要與 getPartition 相同否則超過時會出現 java.lang.ArrayIndexOutOfBoundsException 
+</code></pre></div></div>
+
+<p>修改使用 spanByKey 效能有變快但結果不確定是否正確，因為 output size 變大了，要在驗證結果．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">package</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">twm</span><span class="p">.</span><span class="n">poc</span>
+
+<span class="n">import</span> <span class="n">com</span><span class="p">.</span><span class="n">datastax</span><span class="p">.</span><span class="n">spark</span><span class="p">.</span><span class="n">connector</span><span class="p">.</span><span class="n">_</span>
+<span class="n">import</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">core</span><span class="p">.</span><span class="n">cassandra</span><span class="p">.</span><span class="k">model</span><span class="p">.</span><span class="n">Person</span>
+<span class="n">import</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">core</span><span class="p">.</span><span class="n">mapping</span><span class="p">.</span><span class="n">config</span><span class="p">.{</span><span class="n">DataType</span><span class="p">,</span> <span class="n">EnrichConfig</span><span class="p">}</span>
+<span class="n">import</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">twm</span><span class="p">.</span><span class="n">config</span><span class="p">.</span><span class="n">UpdateSetting</span>
+<span class="n">import</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">twm</span><span class="p">.</span><span class="n">job</span><span class="p">.</span><span class="n">TwmPersonPartitioner</span>
+<span class="n">import</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">twm</span><span class="p">.</span><span class="n">tool</span><span class="p">.{</span><span class="n">JsonInterface</span><span class="p">,</span> <span class="n">PersonParser</span><span class="p">}</span>
+<span class="n">import</span> <span class="n">org</span><span class="p">.</span><span class="n">apache</span><span class="p">.</span><span class="n">spark</span><span class="p">.</span><span class="n">sql</span><span class="p">.</span><span class="n">SparkSession</span>
+<span class="p">/**</span>
+  <span class="p">*</span>
+  <span class="p">*</span>
+  <span class="p">*</span> <span class="n">spark</span><span class="p">-</span><span class="n">submit</span> <span class="p">--</span><span class="n">class</span> <span class="n">ght</span><span class="p">.</span><span class="n">mi</span><span class="p">.</span><span class="n">twm</span><span class="p">.</span><span class="n">poc</span><span class="p">.</span><span class="n">LocationUpdate</span> <span class="p">--</span><span class="n">master</span> <span class="n">yarn</span> <span class="p">--</span><span class="n">deploy</span><span class="p">-</span><span class="n">mode</span> <span class="n">cluster</span> <span class="p">--</span><span class="n">driver</span><span class="p">-</span><span class="n">memory</span> <span class="m">4</span><span class="n">g</span> <span class="p">--</span><span class="n">executor</span><span class="p">-</span><span class="n">memory</span> <span class="m">15</span><span class="n">g</span> <span class="p">--</span><span class="n">executor</span><span class="p">-</span><span class="n">cores</span> <span class="m">4</span> <span class="p">--</span><span class="n">num</span><span class="p">-</span><span class="n">executors</span> <span class="m">12</span> <span class="n">enrich</span><span class="p">-</span><span class="m">5.0.3</span><span class="p">.</span><span class="n">jar</span> <span class="p">/</span><span class="n">data</span><span class="p">/</span><span class="n">pool</span><span class="p">/</span><span class="n">stresstest</span><span class="p">/</span><span class="n">LSR</span><span class="p">*</span> <span class="p">/</span><span class="n">data</span><span class="p">/</span><span class="n">pool</span><span class="p">/</span><span class="n">stresstest</span><span class="p">/</span><span class="n">dailyPerson</span>
+  <span class="p">*</span>
+  <span class="p">*</span> <span class="p">/</span><span class="n">data</span><span class="p">/</span><span class="n">pool</span><span class="p">/</span><span class="n">daily</span><span class="p">/</span><span class="m">20190608</span>
+  <span class="p">*</span>
+  <span class="p">*</span> <span class="p">*/</span>
+<span class="n">object</span> <span class="n">LocationUpdate</span> <span class="p">{</span>
+
+  <span class="n">def</span> <span class="n">main</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="k">Array</span><span class="p">[</span><span class="k">String</span><span class="p">]):</span> <span class="n">Unit</span> <span class="p">=</span> <span class="p">{</span>
+
+    <span class="n">val</span> <span class="n">locationPath</span> <span class="p">=</span> <span class="n">args</span><span class="p">(</span><span class="m">0</span><span class="p">)</span>
+    <span class="n">val</span> <span class="n">dailyPersonOutputPath</span> <span class="p">=</span> <span class="n">args</span><span class="p">(</span><span class="m">1</span><span class="p">)</span>
+
+    <span class="n">val</span> <span class="n">spark</span><span class="p">:</span> <span class="n">SparkSession</span> <span class="p">=</span> <span class="n">SparkSession</span><span class="p">.</span><span class="n">builder</span><span class="p">()</span>
+      <span class="p">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.sql.warehouse.dir"</span><span class="p">,</span> <span class="s2">"/tmp"</span><span class="p">)</span>
+      <span class="p">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.cassandra.connection.host"</span><span class="p">,</span> <span class="n">EnrichConfig</span><span class="p">.</span><span class="n">CASSANDRA_IPS</span><span class="p">)</span>
+      <span class="p">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.cassandra.auth.username"</span><span class="p">,</span> <span class="n">EnrichConfig</span><span class="p">.</span><span class="n">CASSANDRA_USER</span><span class="p">)</span>
+      <span class="p">.</span><span class="n">config</span><span class="p">(</span><span class="s2">"spark.cassandra.auth.password"</span><span class="p">,</span> <span class="n">EnrichConfig</span><span class="p">.</span><span class="n">CASSANDRA_PSWD</span><span class="p">)</span>
+      <span class="p">.</span><span class="n">getOrCreate</span><span class="p">()</span>
+
+    <span class="n">val</span> <span class="n">sc</span> <span class="p">=</span> <span class="n">spark</span><span class="p">.</span><span class="n">sparkContext</span>
+
+    <span class="n">val</span> <span class="n">setting</span> <span class="p">=</span> <span class="n">new</span> <span class="n">UpdateSetting</span><span class="p">(</span>
+      <span class="n">dataType</span> <span class="p">=</span> <span class="n">DataType</span><span class="p">.</span><span class="n">LOCATION</span> <span class="p">,</span>
+      <span class="n">labelCritDir</span> <span class="p">=</span> <span class="n">EnrichConfig</span><span class="p">.</span><span class="n">LABEL_CRIT_DIR</span>
+    <span class="p">)</span>
+
+    <span class="n">val</span> <span class="n">jsonFile</span> <span class="p">=</span> <span class="n">sc</span><span class="p">.</span><span class="n">textFile</span><span class="p">(</span><span class="n">setting</span><span class="p">.</span><span class="n">labelCritDir</span><span class="p">).</span><span class="n">collect</span><span class="p">.</span><span class="n">mkString</span><span class="p">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">" "</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span>
+    <span class="n">val</span> <span class="n">profileSink</span> <span class="p">=</span> <span class="n">sc</span><span class="p">.</span><span class="n">broadcast</span><span class="p">(</span><span class="n">JsonInterface</span><span class="p">.</span><span class="n">json2ProfileCritUnits</span><span class="p">(</span><span class="n">JsonInterface</span><span class="p">.</span><span class="n">readJSON</span><span class="p">(</span><span class="n">jsonFile</span><span class="p">)))</span>
+
+    <span class="n">val</span> <span class="n">repartitionLocationRdd</span> <span class="p">=</span> <span class="n">sc</span><span class="p">.</span><span class="n">textFile</span><span class="p">(</span><span class="n">locationPath</span><span class="p">).</span><span class="n">flatMap</span><span class="p">(</span>
+      <span class="n">str</span> <span class="p">=&gt;</span> <span class="p">{</span>
+        <span class="n">PersonParser</span><span class="p">.</span><span class="n">stringToPerson</span><span class="p">(</span><span class="n">str</span><span class="p">,</span><span class="n">DataType</span><span class="p">.</span><span class="n">LOCATION</span> <span class="p">,</span><span class="n">profileSink</span><span class="p">)</span>
+      <span class="p">}</span>
+    <span class="p">)</span>
+    <span class="n">repartitionLocationRdd</span><span class="p">.</span><span class="n">spanByKey</span><span class="p">.</span><span class="n">mapPartitions</span><span class="p">(</span>
+      <span class="n">iter</span> <span class="p">=&gt;</span>
+        <span class="n">for</span><span class="p">(</span><span class="n">p</span> <span class="p">&lt;-</span> <span class="n">iter</span><span class="p">)</span> <span class="n">yield</span> <span class="p">{</span>
+          <span class="n">val</span> <span class="n">personKey</span> <span class="p">=</span> <span class="n">p</span><span class="p">.</span><span class="n">_1</span>
+          <span class="n">val</span> <span class="n">person</span> <span class="p">=</span> <span class="n">p</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">foldLeft</span><span class="p">(</span><span class="n">new</span> <span class="n">Person</span><span class="p">(</span><span class="n">id</span> <span class="p">=</span> <span class="n">personKey</span><span class="p">))</span> <span class="p">{</span>
+            <span class="k">case</span> <span class="p">(</span><span class="n">p</span> <span class="p">,</span> <span class="n">ps</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+              <span class="n">Person</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="n">p</span> <span class="p">,</span> <span class="n">ps</span><span class="p">)</span>
+            <span class="p">}</span>
+          <span class="p">}</span>
+          <span class="n">person</span><span class="p">.</span><span class="n">toString</span>
+        <span class="p">}</span>
+    <span class="p">).</span><span class="n">saveAsTextFile</span><span class="p">(</span><span class="n">dailyPersonOutputPath</span><span class="p">)</span>
+
+    <span class="p">/*</span>
+    <span class="n">val</span> <span class="n">locationRdd</span> <span class="p">=</span> <span class="n">repartitionLocationRdd</span><span class="p">.</span><span class="n">reduceByKey</span><span class="p">{</span>
+      <span class="n">Person</span><span class="p">.</span><span class="n">merge</span>
+    <span class="p">}.</span><span class="n">map</span><span class="p">(</span><span class="n">_</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">toString</span><span class="p">).</span><span class="n">cache</span><span class="p">()</span>
+
+    <span class="n">locationRdd</span><span class="p">.</span><span class="n">saveAsTextFile</span><span class="p">(</span><span class="n">dailyPersonOutputPath</span><span class="p">)</span>
+    <span class="p">*/</span>
+
+
+    <span class="n">val</span> <span class="n">totalInsertPerson</span> <span class="p">=</span> <span class="n">sc</span><span class="p">.</span><span class="n">textFile</span><span class="p">(</span><span class="n">dailyPersonOutputPath</span><span class="p">).</span><span class="n">map</span><span class="p">(</span>
+      <span class="n">str</span> <span class="p">=&gt;</span> <span class="p">{</span>
+        <span class="n">val</span> <span class="n">p</span> <span class="p">=</span> <span class="n">PersonParser</span><span class="p">.</span><span class="n">modelString</span><span class="p">(</span><span class="n">str</span><span class="p">)</span>
+        <span class="n">p</span><span class="p">.</span><span class="n">id</span> <span class="p">-&gt;</span> <span class="n">p</span>
+      <span class="p">}</span>
+    <span class="p">).</span><span class="n">reduceByKey</span> <span class="p">{</span>
+      <span class="n">Person</span><span class="p">.</span><span class="n">merge</span>
+    <span class="p">}.</span><span class="n">map</span><span class="p">(</span><span class="n">p</span> <span class="p">=&gt;</span> <span class="p">{</span>
+      <span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">groupid</span> <span class="p">,</span> <span class="n">p</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">id</span> <span class="p">,</span> <span class="p">(</span><span class="nf">System</span><span class="p">.</span><span class="n">currentTimeMillis</span><span class="p">()/</span><span class="m">1000</span><span class="p">)</span> <span class="p">,</span> <span class="n">p</span><span class="p">.</span><span class="n">_2</span><span class="p">.</span><span class="n">toString</span><span class="p">)</span>
+    <span class="p">}).</span><span class="n">cache</span><span class="p">()</span>
+
+    <span class="n">totalInsertPerson</span><span class="p">.</span><span class="n">saveToCassandra</span><span class="p">(</span><span class="n">EnrichConfig</span><span class="p">.</span><span class="n">CASSANDRA_KEYSPACE</span> <span class="p">,</span> <span class="s2">"person_by_string_time"</span><span class="p">)</span>
+  <span class="p">}</span>
+
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p><img src="/static/img/spark/sparkPartitionBy/sparkPartitionBy_2.jpg" alt="sparkPartitionBy_2.jpg" height="400px" width="800px" /></p>
+
+
+      </article>
+      <hr>
+    </div>
+  </div>
+</div>
+    </div>
+
+    
+    <div id="top" data-toggle="tooltip" data-placement="left" title="back to top">
+      <a href="javascript:;">
+        <div class="arrow"></div>
+        <div class="stick"></div>
+      </a>
+    </div>
+
+    <footer class="">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12">
+        <a href="mailto:"><span class="glyphicon glyphicon-envelope"></span> </a>
+          <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span><a href="_posts/spark/2019-09-12-spark-partitionBy.md">View source</a></span>
+          <span class="point"> · </span>
+		      <span class="point"> · </span>
+          <span class="point"> · </span>
+          <span>&copy; 2019 Daniel</span>
+      </div>
+    </div>
+  </div>
+</footer>
+  
+  </body>
+</html>

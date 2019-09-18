@@ -4,7 +4,7 @@ comments: false
 categories: spark
 ---
 
-### spark partitionBy
+### custom spark Partitioner
 測試環境 hadoop cluster :
 ```
 3 台 vm :

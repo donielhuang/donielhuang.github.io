@@ -5,13 +5,137 @@
     <description>Daniel's Blogs</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 12 Sep 2019 19:13:04 +0800</pubDate>
-    <lastBuildDate>Thu, 12 Sep 2019 19:13:04 +0800</lastBuildDate>
+    <pubDate>Wed, 18 Sep 2019 16:28:34 +0800</pubDate>
+    <lastBuildDate>Wed, 18 Sep 2019 16:28:34 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
     
       <item>
-        <title>Spark Partitionby</title>
-        <description>&lt;h3 id=&quot;spark-partitionby&quot;&gt;spark partitionBy&lt;/h3&gt;
+        <title>Spark Performance Tune</title>
+        <description>&lt;h2 id=&quot;transformations&quot;&gt;Transformations&lt;/h2&gt;
+&lt;p&gt;Transformations 的操作有分為 Narrow 和 Wide．&lt;/p&gt;
+
+&lt;h4 id=&quot;narrow-transformations&quot;&gt;Narrow Transformations&lt;/h4&gt;
+&lt;p&gt;表示從 parent RDD 經過 Narrow Transformations 的轉換後，還是只會成為單一的 partition．屬於一對一的關係，所以 partition 的資料不會跨 partition 造成 shuffle．
+相關的操作有 map , filter , union．&lt;/p&gt;
+
+&lt;h4 id=&quot;wide-transformations&quot;&gt;Wide Transformations&lt;/h4&gt;
+&lt;p&gt;表示從 parent RDD 經過 Wide Transformations 的轉換後，原來 partition 的資料會經過 shuffle 分散到不同的 partition 去，屬於一對多的關係．相關操作有 groupByKey、reduceByKey、distinct、join．&lt;/p&gt;
+
+&lt;h2 id=&quot;resource-allocation&quot;&gt;Resource Allocation&lt;/h2&gt;
+
+&lt;p&gt;影響到 spark application 的效能需要考慮到 CPU、memory、diosk IO、network IO 當然還有程式的寫法盡量避免太多 shuffle．&lt;/p&gt;
+
+&lt;p&gt;當要執行一個 spark application 時，這邊使用的是跑在 hadoop cluster 的 yarn 上面．需要根據 cluster 的資源來思考要怎麼分配給 spark executor 使用作運算，指令如下&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;spark-submit --class com.mitwm.poc.CustomOperate --master yarn --deploy-mode cluster --driver-memory 4g --executor-memory 15g --executor-cores 5 --num-executors 12 enrich-5.0.3.jar 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h4 id=&quot;core&quot;&gt;core&lt;/h4&gt;
+
+&lt;p&gt;core 數影響的是 executor task 的並行執行的數量，所以 ` –executor-cores 5 ` 表示一個 executor 最多能有 5 個 task 同時在執行．另外 HDFS client 最好的 throughput 是一個 executor 最多 5 個 task．&lt;/p&gt;
+
+&lt;h4 id=&quot;memory&quot;&gt;memory&lt;/h4&gt;
+
+&lt;p&gt;memory 影響的是能有多少量的資料可以存放在 executor 裡，存放的類型有 cache data、shuffle data．但要注意設太大時 GC 的時間可能也會增加太多．一個 executor 建議的最大值不要超過 64 G．&lt;/p&gt;
+
+&lt;h4 id=&quot;evaluate-executor-resource&quot;&gt;evaluate executor resource&lt;/h4&gt;
+
+&lt;p&gt;假設有 6 台機器，每台機器有 16 cores 和 64 G 的 memory．可以用 15 個 cores 和 63 G 的資源來做 hadoop cluster．&lt;br /&gt;
+所以 hadoop cluster 的資源總共會有 15 * 6 = 90 cores 和 63 G * 6 = 378 G 的 memory．&lt;br /&gt;
+這時要設定 yarn 的兩個參數  yarn.nodemanager.resource.memory-mb 和  yarn.nodemanager.resource.cpu-vcores．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;yarn.nodemanager.resource.memory-mb 設定 63 G * 1024 = 64512 M．
+yarn.nodemanager.resource.cpu-vcores 設定 15．
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;根據上面的資源情況，spark executor 的資源這樣分配，每台跑一個 executor 每個 executor 15 cores 和 63G 的 memory．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;--num-executors 6 --executor-cores 15 --executor-memory 63G
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;看似合理但其實會有遇到一些問題，&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;因為 executor memory 還會需要一些 overhead，所以當 63G 的 memory 都給 executor 使用就沒有多的 memory 給 overhead．&lt;/li&gt;
+  &lt;li&gt;spark driver 會被丟到其中一台機器執行，但也沒有額外多的 core 和 memory 給 driver 使用了．&lt;/li&gt;
+  &lt;li&gt;HDFS IO throughput 最好的是一個 executor 給 5 個 core．&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;executor-cores&quot;&gt;executor-cores&lt;/h4&gt;
+&lt;p&gt;要改善上面的值 core 數就給 5 因為 HDFS IO throughput 最好．&lt;/p&gt;
+
+&lt;h4 id=&quot;num-executors&quot;&gt;num-executors&lt;/h4&gt;
+&lt;p&gt;總共有 90 個 cores / 5 (一個 executor) = 18 (總共最多可以有 18 個 executor) - 1 (for driver) = 17 executor (17 個 executor 平行度最佳)&lt;/p&gt;
+
+&lt;h4 id=&quot;executor-memory&quot;&gt;executor-memory&lt;/h4&gt;
+&lt;p&gt;15(一台機器 15 core) / 5(一個 executor) = 3 (一台機器最多能有 3 個 executor)&lt;/p&gt;
+
+&lt;p&gt;63 G / 3 = 21 G．
+計算 overhead memory : 21 G * 0.1 = 2.1 G，大於 384 M．所以 overhead memory 是 2.1 G．
+最後將 21 G - 2.1 G = 18.9 ~ 18 G．&lt;br /&gt;
+記得 driver memory 也會有 overhead memory 也是用這樣的方式算．假設 driver memroy 給 5 G，overhead 就是 5 * 0.1 = 0.5 G，實際用到的 memory 會是 5.5 G．&lt;br /&gt;
+0.1 這個值是參考 &lt;a href=&quot;https://spark.apache.org/docs/2.3.1/configuration.html#viewing-spark-properties&quot;&gt;spark 2.3.1 configuration&lt;/a&gt; 來的，建議不同版本的話要確認一下．&lt;/p&gt;
+
+&lt;p&gt;所以最後 spark executor 資源分配改成&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;--num-executors 17 --executor-cores 5 --executor-memory 18G
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h4 id=&quot;partitions&quot;&gt;partitions&lt;/h4&gt;
+&lt;p&gt;spark 會把要處理的資料分散在不同的 partition 裡，一個 task 可以處理一個 partition．partition 的切法可以透過 &lt;code class=&quot;highlighter-rouge&quot;&gt;spark.default.parallelism&lt;/code&gt; 值設定．&lt;br /&gt;
+如果是讀取 HDFS 的檔案的話則會根據 HDFS 的 block size 來當作 partitions，所以 HDFS 的 block size 如果是 128 M，則 spark 讀取後每個 partition 也就是 128 M．(128&lt;code class=&quot;highlighter-rouge&quot;&gt;*&lt;/code&gt;1024&lt;code class=&quot;highlighter-rouge&quot;&gt;*&lt;/code&gt;1024 , such as 134217728 for 128 MB).&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;property&amp;gt;
+      &amp;lt;name&amp;gt;dfs.blocksize&amp;lt;/name&amp;gt;
+      &amp;lt;value&amp;gt;134217728&amp;lt;/value&amp;gt;
+&amp;lt;/property&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;透過下圖可以看到讀取 HDFS，Input size 的話幾乎都是 128 M，但如果 HDFS 的檔案小於 128 M，例如 279K 則這 279 K 就會是個自一個 partition．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/static/img/spark/sparkPerformance/sparkPerformance_1.jpg&quot; alt=&quot;sparkPerformance_1.jpg&quot; height=&quot;400px&quot; width=&quot;800px&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;如果要確定 rdd 的 partition 數量可以用下面方式．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;rdd.partitions().size()
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;如果 partition 數量太少，假設有 10 台機器，但 partition 卻只有 8 個的情況下，代表不會所有的機器都會用到，會造成 cpu 的浪費．而且表示這些 small task 如果使用到一些 aggregation 的操作，例如 join、reduceByKey 之類的，而且這些操作會造成 shuffle，所以在 shuffle 時 memory 會需要比較多的，如果沒分配好會容易會造成 job failed．&lt;br /&gt;
+所以如果想要增加 partition 數量時可以使用下列方式．&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;使用 repartition 重新分配 partition 的數量．&lt;/li&gt;
+  &lt;li&gt;將 HDFS 的 block size 設小一點．&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;如果要 repartition，但需要知道要分成多少個 partition 比較適當．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val rdd2 = rdd1.reduceByKey(_ + _, numPartitions = X)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;比較好的 performance 是根據 parent RDD 的 partition 數乘上 1.5 倍．&lt;/p&gt;
+
+&lt;p&gt;所以如果讀取 HDFS 檔案切成 119 個 partition * 1.5 = 178.5，在做 reduceByKey 時 X 值可以設成 178 看看效能是否能增加．&lt;/p&gt;
+
+&lt;p&gt;每個 task 在做 shuffle 時可利用的 memory 大小可以透過下列方式計算．(Memory fraction and safety fraction default to 0.2 and 0.8 respectively)&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(spark.executor.memory * spark.shuffle.memoryFraction * spark.shuffle.safetyFraction) / spark.executor.cores
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;假設是 18 G 和 5 cores 經過算式算完是 589 M，如果在做 shuffle 超過 589 M 很可能 job 就會 failed．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(18 G * 0.2 * 0.8) / 5 (core) = 2.88 * 1024 = 2949 M / 5 ~ 589 M
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;在通常的情況下多一點 partition 會比太少的 partition 好．&lt;/p&gt;
+
+</description>
+        <pubDate>Wed, 18 Sep 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/spark/2019/09/18/spark-performance-tune.html</link>
+        <guid isPermaLink="true">http://localhost:4000/spark/2019/09/18/spark-performance-tune.html</guid>
+        
+        
+        <category>spark</category>
+        
+      </item>
+    
+      <item>
+        <title>Spark Custom Partitioner</title>
+        <description>&lt;h3 id=&quot;custom-spark-partitioner&quot;&gt;custom spark Partitioner&lt;/h3&gt;
 &lt;p&gt;測試環境 hadoop cluster :&lt;/p&gt;
 &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;3 台 vm :
 memory total : 138 GB
@@ -257,8 +381,8 @@ core total : 30
 
 </description>
         <pubDate>Thu, 12 Sep 2019 00:00:00 +0800</pubDate>
-        <link>http://localhost:4000/spark/2019/09/12/spark-partitionBy.html</link>
-        <guid isPermaLink="true">http://localhost:4000/spark/2019/09/12/spark-partitionBy.html</guid>
+        <link>http://localhost:4000/spark/2019/09/12/spark-custom-partitioner.html</link>
+        <guid isPermaLink="true">http://localhost:4000/spark/2019/09/12/spark-custom-partitioner.html</guid>
         
         
         <category>spark</category>
@@ -1643,112 +1767,6 @@ b-&amp;gt; 3
         <pubDate>Fri, 22 Feb 2019 00:00:00 +0800</pubDate>
         <link>http://localhost:4000/spark/2019/02/22/spark-repartitionAndSortWithinPartitions.html</link>
         <guid isPermaLink="true">http://localhost:4000/spark/2019/02/22/spark-repartitionAndSortWithinPartitions.html</guid>
-        
-        
-        <category>spark</category>
-        
-      </item>
-    
-      <item>
-        <title>Spark Lsh</title>
-        <description>&lt;h3 id=&quot;spark-lsh-實作&quot;&gt;spark LSH 實作&lt;/h3&gt;
-
-&lt;p&gt;建立一組 index 並 shuffle．透過 Stream.range 建立一組 1 到 10 的數字，並透過 random swap 的方式打亂．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val suffleIndex = shuffleIndex(Stream.range(1,10).toArray)
-
-def shuffleIndex(arr: Array[Int]): Array[Int] = {
-  val rand = new Random()
-  for(i &amp;lt;- arr.size to 1 by -1) {
-    swap(arr , (i-1) , rand.nextInt(i))
-  }
-  arr
-}
-
-def swap(arr: Array[Int], i:Int ,j:Int): Array[Int] = {
-  val tmp = arr(i)
-  arr(i) = arr(j)
-  arr(j) = tmp
-  arr
-} 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;輸出結果會是&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;println(suffleIndex.mkString(&quot;,&quot;)) // 6,2,1,7,5,8,3,9,4
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;建立 label 的查找順序查看該 label 是否有值，第 1 個找的是 label 8 的值，第 2 個找的是 label 2 的值，以此類推…&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val findLabelSequence = shuffleIndex(Stream.range(1,10).toArray).zipWithIndex.sortWith(_._1 &amp;lt; _._1).map(i =&amp;gt; (i._1 , (i._2 + 1)))
-println(findLabelSequence.mkString(&quot;,&quot;)) // (1,8),(2,2),(3,4),(4,9),(5,3),(6,1),(7,5),(8,6),(9,7)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;假設有這些 label 及分數，透過 map 的方式將 Seq[string] 轉成 Map[Int,Double]&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val labels = Seq(
-  &quot;1:0.5,4:0.3,8:0.4&quot; ,
-  &quot;2:0.7,7:0.9&quot;
-)
-val personMaps = labels.map(_.split(&quot;,&quot;).map(
-  linfo =&amp;gt; {
-    (linfo.split(&quot;:&quot;)(0).toInt , linfo.split(&quot;:&quot;)(1).toDouble)
-  }
-).toMap)
-personMaps.foreach(println(_))
-
-// person1 : Map(1 -&amp;gt; 0.5, 4 -&amp;gt; 0.3, 8 -&amp;gt; 0.4)
-// person2 : Map(2 -&amp;gt; 0.7, 7 -&amp;gt; 0.9)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;接著只要照剛剛的 findLabelSequence 順序找看看該 Key 是否存在，第一個找到的話就變成該 label 的一個 signatureIndex．&lt;br /&gt;
-person1 根據 findLabelSequence 算的 signatureIndex 會是 8．&lt;br /&gt;
-person2 根據 findLabelSequence 算的 signatureIndex 會是 2．&lt;br /&gt;
-接著可以建立 signature matrix [8] 和 [2]，接著只要有新的 person(person3) 進來，如果透過 findLabelSequence 算出來的值是 8，就可以把該 person 放到 [8] 這著 bucket 裡．&lt;br /&gt;
-代表 person1 和 person3 是屬於同一類型的人．&lt;br /&gt;
-接著繼續實作…&lt;br /&gt;
-給一組 Map (Map(1 -&amp;gt; 0.5, 4 -&amp;gt; 0.3, 8 -&amp;gt; 0.4)) 和 findLabelSequence (Seq((1,8),(2,2),(3,4),(4,9),(5,3),(6,1),(7,5),(8,6),(9,7))) 來找到 signatureIndex&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;def findSignatureIndex(labels:Map[Int,Double],findLabelSequence:Seq[Tuple2[Int,Int]]):Int = {
-    println(&quot;labels -&amp;gt; &quot; + labels)
-    println(&quot;findLabelSequence -&amp;gt; &quot; + findLabelSequence)
-	val resultList = findLabelSequence.filter(s =&amp;gt; labels.contains(s._2)).take(1)
-	if(resultList.isEmpty) {
-	  0
-	} else {
-	  resultList(0)._2
-	}
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;找出每個人的 signatureIndex&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;val labels = Seq(
-  &quot;1:0.5,4:0.3,8:0.4&quot; ,
-  &quot;2:0.7,7:0.9&quot;
-)
-
-val personMaps = labels.map(_.split(&quot;,&quot;).map(
-  linfo =&amp;gt; {
-    (linfo.split(&quot;:&quot;)(0).toInt , linfo.split(&quot;:&quot;)(1).toDouble)
-  }
-).toMap)
-val findLabelSequence = shuffleIndex(Stream.range(1,10).toArray).zipWithIndex.sortWith(_._1 &amp;lt; _._1).map(i =&amp;gt; (i._1 , (i._2 + 1)))
-val signatureIndex = personMaps.map(m =&amp;gt; findSignatureIndex(m , findLabelSequence))
-signatureIndex.foreach(println(_))
-
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;執行結果&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;labels -&amp;gt; Map(1 -&amp;gt; 0.5, 4 -&amp;gt; 0.3, 8 -&amp;gt; 0.4)
-findLabelSequence -&amp;gt; WrappedArray((1,2), (2,9), (3,8), (4,1), (5,5), (6,6), (7,3), (8,4), (9,7))
-labels -&amp;gt; Map(2 -&amp;gt; 0.7, 7 -&amp;gt; 0.9)
-findLabelSequence -&amp;gt; WrappedArray((1,2), (2,9), (3,8), (4,1), (5,5), (6,6), (7,3), (8,4), (9,7))
-8
-2
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-</description>
-        <pubDate>Thu, 21 Feb 2019 00:00:00 +0800</pubDate>
-        <link>http://localhost:4000/spark/2019/02/21/spark-LSH.html</link>
-        <guid isPermaLink="true">http://localhost:4000/spark/2019/02/21/spark-LSH.html</guid>
         
         
         <category>spark</category>

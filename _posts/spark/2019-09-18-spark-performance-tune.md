@@ -76,6 +76,8 @@ yarn.nodemanager.resource.cpu-vcores 設定 15．
 --num-executors 17 --executor-cores 5 --executor-memory 18G
 ```
 
+但實際上測試時如果 executor-memory 造上面的公式計算，job 還是有可能會 failed，感覺還是要多留一些 buffer ．所以如果出現 failed 18 G 在降個 1 ~ 2 G 試試看．
+
 #### partitions
 spark 會把要處理的資料分散在不同的 partition 裡，一個 task 可以處理一個 partition．partition 的切法可以透過 `spark.default.parallelism` 值設定．  
 如果是讀取 HDFS 的檔案的話則會根據 HDFS 的 block size 來當作 partitions，所以 HDFS 的 block size 如果是 128 M，則 spark 讀取後每個 partition 也就是 128 M．(128`*`1024`*`1024 , such as 134217728 for 128 MB).

@@ -5,8 +5,8 @@
     <description>Daniel's Blogs</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 18 Sep 2019 17:10:41 +0800</pubDate>
-    <lastBuildDate>Wed, 18 Sep 2019 17:10:41 +0800</lastBuildDate>
+    <pubDate>Wed, 18 Sep 2019 17:57:36 +0800</pubDate>
+    <lastBuildDate>Wed, 18 Sep 2019 17:57:36 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
     
       <item>
@@ -79,6 +79,8 @@ yarn.nodemanager.resource.cpu-vcores 設定 15．
 
 &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;--num-executors 17 --executor-cores 5 --executor-memory 18G
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;但實際上測試時如果 executor-memory 造上面的公式計算，job 還是有可能會 failed，感覺還是要多留一些 buffer ．所以如果出現 failed 18 G 在降個 1 ~ 2 G 試試看．&lt;/p&gt;
 
 &lt;h4 id=&quot;partitions&quot;&gt;partitions&lt;/h4&gt;
 &lt;p&gt;spark 會把要處理的資料分散在不同的 partition 裡，一個 task 可以處理一個 partition．partition 的切法可以透過 &lt;code class=&quot;highlighter-rouge&quot;&gt;spark.default.parallelism&lt;/code&gt; 值設定．&lt;br /&gt;

@@ -120,7 +120,7 @@ val rdd2 = rdd1.reduceByKey(_ + _, numPartitions = X)
 (18 G * 0.2 * 0.8) / 5 (core) = 2.88 * 1024 = 2949 M / 5 ~ 589 M
 ```
 
-在通常的情況下多一點 partition 會比太少的 partition 好．
+在通常的情況下多一點 partition 會比太少的 partition 好．這個建議跟 MapReduce 剛好相反, 因為 spark 啟動 tasks 的 overhead 相對較少．
 
 
 

@@ -5,8 +5,8 @@
     <description>Daniel's Blogs</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 18 Sep 2019 16:28:34 +0800</pubDate>
-    <lastBuildDate>Wed, 18 Sep 2019 16:28:34 +0800</lastBuildDate>
+    <pubDate>Wed, 18 Sep 2019 17:10:41 +0800</pubDate>
+    <lastBuildDate>Wed, 18 Sep 2019 17:10:41 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
     
       <item>
@@ -121,7 +121,7 @@ yarn.nodemanager.resource.cpu-vcores 設定 15．
 &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(18 G * 0.2 * 0.8) / 5 (core) = 2.88 * 1024 = 2949 M / 5 ~ 589 M
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
 
-&lt;p&gt;在通常的情況下多一點 partition 會比太少的 partition 好．&lt;/p&gt;
+&lt;p&gt;在通常的情況下多一點 partition 會比太少的 partition 好．這個建議跟 MapReduce 剛好相反, 因為 spark 啟動 tasks 的 overhead 相對較少．&lt;/p&gt;
 
 </description>
         <pubDate>Wed, 18 Sep 2019 00:00:00 +0800</pubDate>

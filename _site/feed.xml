@@ -5,8 +5,8 @@
     <description>Daniel's Blogs</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 18 Sep 2019 17:57:36 +0800</pubDate>
-    <lastBuildDate>Wed, 18 Sep 2019 17:57:36 +0800</lastBuildDate>
+    <pubDate>Thu, 19 Sep 2019 12:51:27 +0800</pubDate>
+    <lastBuildDate>Thu, 19 Sep 2019 12:51:27 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
     
       <item>
@@ -113,15 +113,6 @@ yarn.nodemanager.resource.cpu-vcores 設定 15．
 &lt;p&gt;比較好的 performance 是根據 parent RDD 的 partition 數乘上 1.5 倍．&lt;/p&gt;
 
 &lt;p&gt;所以如果讀取 HDFS 檔案切成 119 個 partition * 1.5 = 178.5，在做 reduceByKey 時 X 值可以設成 178 看看效能是否能增加．&lt;/p&gt;
-
-&lt;p&gt;每個 task 在做 shuffle 時可利用的 memory 大小可以透過下列方式計算．(Memory fraction and safety fraction default to 0.2 and 0.8 respectively)&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(spark.executor.memory * spark.shuffle.memoryFraction * spark.shuffle.safetyFraction) / spark.executor.cores
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;假設是 18 G 和 5 cores 經過算式算完是 589 M，如果在做 shuffle 超過 589 M 很可能 job 就會 failed．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(18 G * 0.2 * 0.8) / 5 (core) = 2.88 * 1024 = 2949 M / 5 ~ 589 M
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
 
 &lt;p&gt;在通常的情況下多一點 partition 會比太少的 partition 好．這個建議跟 MapReduce 剛好相反, 因為 spark 啟動 tasks 的 overhead 相對較少．&lt;/p&gt;
 

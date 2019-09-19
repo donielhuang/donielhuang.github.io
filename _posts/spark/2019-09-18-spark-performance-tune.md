@@ -111,17 +111,6 @@ val rdd2 = rdd1.reduceByKey(_ + _, numPartitions = X)
 
 所以如果讀取 HDFS 檔案切成 119 個 partition * 1.5 = 178.5，在做 reduceByKey 時 X 值可以設成 178 看看效能是否能增加．
 
-每個 task 在做 shuffle 時可利用的 memory 大小可以透過下列方式計算．(Memory fraction and safety fraction default to 0.2 and 0.8 respectively)
-```
-(spark.executor.memory * spark.shuffle.memoryFraction * spark.shuffle.safetyFraction) / spark.executor.cores
-```
-
-假設是 18 G 和 5 cores 經過算式算完是 589 M，如果在做 shuffle 超過 589 M 很可能 job 就會 failed．
-
-```
-(18 G * 0.2 * 0.8) / 5 (core) = 2.88 * 1024 = 2949 M / 5 ~ 589 M
-```
-
 在通常的情況下多一點 partition 會比太少的 partition 好．這個建議跟 MapReduce 剛好相反, 因為 spark 啟動 tasks 的 overhead 相對較少．
 
 

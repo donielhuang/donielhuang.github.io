@@ -13,7 +13,40 @@ Transformations 的操作有分為 Narrow 和 Wide．
 
 #### Wide Transformations 
 表示從 parent RDD 經過 Wide Transformations 的轉換後，原來 partition 的資料會經過 shuffle 分散到不同的 partition 去，屬於一對多的關係．相關操作有 groupByKey、reduceByKey、distinct、join．
+join 操作，如果假設 RDD A 有 4 個 partition，RDD B 有 2 個 partition，A 和 B 做 join，會先把 RDD A 做一次 shuffle 把 4 個 partition 變成 2 個 partition，接著再對已經變成 2 個 partition 的 RDD A 和 RDD B 做 shuffle，總共做了 2 次 shuffle．
 
+#### stage
+spark 的 stage 有分兩種，一種是 spark job 最後產生結果的階段 ResultStage，另一種是中間過程產生的 ShuffleMapStage．
+屬於 ResultStage 的 Task 都是 ResultTask，屬於 ShuffleMapStage 都是 ShuffleMapTask．
+
+#### shuffle
+shuffle 主要分為兩個階段 shuffle write 和 shuffle read．
+shuffle 過程會把前一個 stage 的 shuffleMapTask 進行 shuffle write，把資料存在 blockManager 上，並且把資料位置的訊息傳給 driver 的 mapOutTrack 裡．
+下一個 stage 會根據資料位置的訊息進行 shuffle read 並且拉取上個 stage 輸出的資料．
+shuffle 調整參數和 Default 值 : 
+```
+spark.shuffle.file.buffer            32k (shuffle write)
+spark.reducer.maxSizeInFlight        48m (shuffle read)
+spark.reducer.maxReqsInFlight        Int.MaxValue
+spark.maxRemoteBlockSizeFetchToMem   Int.MaxValue - 512 (enabled external shuffle service)
+spark.shuffle.memoryFraction         0.2 (shuffle read)
+```
+
+* Int.MaxValue 大約 2 G
+
+如果有看到要調整 spark.yarn.executor.memoryOverhead ，這參數是舊版的設定值，新版的已經改成 spark.executor.memoryOverhead．可以這樣調整．
+```
+--conf spark.executor.memoryOverhead=2048
+```
+
+如果有遇到
+```
+ERROR TaskSetManager: Total size of serialized results of 30 tasks (1108.5 MB) is bigger than spark.driver.maxResultSize (1024.0 MB)
+```
+可以嘗試加大 maxResultSize
+```
+--conf spark.driver.maxResultSize=2G
+```
 
 ## Resource Allocation
 
@@ -116,9 +149,119 @@ val rdd2 = rdd1.reduceByKey(_ + _, numPartitions = X)
 
 
 
+shuffle 參考資料 :
+https://www.cnblogs.com/haozhengfei/p/5fc4a976a864f33587b094f36b72c7d3.html
+
+shuffle read 會 failed
+spark-submit --class ght.mi.twm.poc.LocationUpdate --master yarn --deploy-mode cluster --driver-memory 4g --executor-memory 25g --executor-cores 5 --num-executors 20 enrich-5.0.3.jar /data/pool/stresstest/location_1T/LSR* /data/pool/stresstest/location_1T/dailyPerson
+
+shuffle write 時就 failed 了
+spark-submit --class ght.mi.twm.poc.LocationUpdate --master yarn --deploy-mode cluster --driver-memory 4g --executor-memory 35g --executor-cores 5 --num-executors 15 enrich-5.0.3.jar /data/pool/stresstest/location_1T/LSR* /data/pool/stresstest/location_1T/dailyPerson
+
+執行時間 1.8 h
+spark-submit --class ght.mi.twm.poc.LocationUpdate --master yarn --deploy-mode cluster --driver-memory 4g --executor-memory 25g --executor-cores 5 --num-executors 15 enrich-5.0.3.jar /data/pool/stresstest/location_1T/LSR* /data/pool/stresstest/location_1T/dailyPerson
 
 
 
+還沒測
+spark-submit --conf spark.reducer.maxSizeInFlight=96m --class ght.mi.twm.poc.LocationUpdate --master yarn --deploy-mode cluster --driver-memory 4g --executor-memory 25g --executor-cores 5 --num-executors 15 enrich-5.0.3.jar /data/pool/stresstest/location_1T/LSR* /data/pool/stresstest/location_1T/dailyPerson
+
+
+
+
+從下列可以看出有三台機器也就是三個 node (worker)，而每個 CoarseGrainedExecutorBackend 都包含了一個 executor，所以一台 worker 啟動了 5 個 executor，每個 executor 會有 thread pool 而每個 thread 可以執行一個 task，但在 dmpn5 上面可以看到有多一個 ApplicationMaster，也就是 driver 被丟到了 dmpn5 上面．
+
+```
+test@dmpn2:~>jps
+41056 NameNode
+75923 CoarseGrainedExecutorBackend
+41635 JournalNode
+133990 Jps
+42630 NodeManager
+75643 CoarseGrainedExecutorBackend
+76411 CoarseGrainedExecutorBackend
+75642 CoarseGrainedExecutorBackend
+76410 CoarseGrainedExecutorBackend
+41229 DataNode
+42447 ResourceManager
+
+
+test@dmpn4:~>jps
+140882 CoarseGrainedExecutorBackend
+191794 Jps
+105344 JournalNode
+141571 CoarseGrainedExecutorBackend
+140881 CoarseGrainedExecutorBackend
+141572 CoarseGrainedExecutorBackend
+60729 NodeManager
+105194 DataNode
+91039 QuorumPeerMain
+141132 CoarseGrainedExecutorBackend
+
+
+test@dmpn5:~>jps
+111141 SparkSubmit
+112013 ApplicationMaster
+17167 NodeManager
+169395 QuorumPeerMain
+113075 CoarseGrainedExecutorBackend
+4691 DataNode
+11123 HistoryServer
+113076 CoarseGrainedExecutorBackend
+112279 CoarseGrainedExecutorBackend
+4855 JournalNode
+5047 DFSZKFailoverController
+112729 CoarseGrainedExecutorBackend
+170874 Jps
+112442 CoarseGrainedExecutorBackend
+5214 ResourceManager
+```
+
+
+修改 HDFS Block size
+
+```
+<property>
+  <name>dfs.blocksize</name>
+  <value>134217728</value>
+  <!--<value>268435456</value>-->
+</property>
+```
+
+/data/pool/stresstest/location_1T_128G
+
+
+hadoop distcp /data/pool/stresstest/location_1T/LSR* /data/pool/stresstest/location_1T_128G
+
+hdfs dfs -stat %o /data/pool/stresstest/location_1T_128G/*
+
+使用 distcp 沒改變 blocksize．
+
+```
+hadoop distcp -Ddfs.block.size=134217728 /data/pool/stresstest/location_1T/LSR* /newdata/pool/stresstest/location_1T_128G
+```
+
+使用 cp 才有辦法改變 blocksize
+```
+hdfs dfs -cp /data/pool/stresstest/location_1T/LSR* /newdata/pool/stresstest/location_1T_128G
+```
+
+檢查 blocksize 是否更新 : 
+```
+test@dmpn2:/opt/hadoop-3.1.2/etc/hadoop>hdfs dfs -stat %o /newdata/pool/stresstest/location_1T_128G/*
+WARNING: HADOOP_PREFIX has been replaced by HADOOP_HOME. Using value of HADOOP_PREFIX.
+2019-09-23 19:05:45,245 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+134217728
+```
+
+
+
+```
+yarn node -list
+```
+
+
+spark.reducer.maxSizeInFlight
 
 
 

@@ -4,6 +4,9 @@ comments: false
 categories: spark
 ---
 
+
+當在處理 json、parquet、Avro 或 xml 時常會有一些資料類型是 arrays、lists 或 maps 之類的，這時候可以透過 explode 將這些 collection 欄位反正規化轉成一個欄位增加處理的效能．
+
 students.json
 
 ```json
@@ -12,7 +15,7 @@ students.json
 {"name":"Justin", "age":19,"myScore":[{"score1":39,"score2":43},{"score1":28,"score2":53}]}
 ```
 
-先讀取 json file
+先讀取 json file，可以看到 myScore 是一個 array 裡面存放多個型態是 struct 的 element．
 
 ```scala
 scala> val df1 = spark.read.json("/temp/students.json")
@@ -104,7 +107,36 @@ scala> df2.withColumn("myScore2", df2("myScore")).show()
 +-------+---+------------+------------+
 ```
 
+如果想要再把 score1、score2、score3 反正規劃成一個 score 欄位可以透過 array 這個 function，先把這三個欄位合併成一個 scores 欄位然後再透過 explode 展開一次即可．
 
+```scala
+scala> df3.withColumn("scores", array(df3("score1"),df3("score2"),df3("score3"))).select($"name",$"age",explode($"scores")).show()
++-------+---+----+
+|   name|age| col|
++-------+---+----+
+|Michael| 25|  19|
+|Michael| 25|  23|
+|Michael| 25|null|
+|Michael| 25|  58|
+|Michael| 25|  50|
+|Michael| 25|null|
+|   Andy| 30|  29|
+|   Andy| 30|  33|
+|   Andy| 30|null|
+|   Andy| 30|  38|
+|   Andy| 30|  52|
+|   Andy| 30|  60|
+|   Andy| 30|  88|
+|   Andy| 30|  71|
+|   Andy| 30|null|
+| Justin| 19|  39|
+| Justin| 19|  43|
+| Justin| 19|null|
+| Justin| 19|  28|
+| Justin| 19|  53|
++-------+---+----+
+only showing top 20 rows
+```
 
 
 

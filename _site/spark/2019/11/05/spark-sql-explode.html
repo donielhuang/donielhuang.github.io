@@ -6,7 +6,7 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Spark Sql Explode</title>
-	<meta name="description" content="students.json">
+	<meta name="description" content="explode">
 	
 	<link rel="canonical" href="http://localhost:4000/spark/2019/11/05/spark-sql-explode.html">
 	<link rel="alternate" type="application/rss+xml" title="Daniel's Blog" href="http://localhost:4000/feed.xml" />
@@ -96,14 +96,18 @@
       </header>
       <hr>
       <article>
-        <p>students.json</p>
+        <h2 id="explode">explode</h2>
+
+<p>當在處理 json、parquet、Avro 或 xml 時常會有一些資料類型是 arrays、lists 或 maps 之類的，這時候可以透過 explode 將這些 collection 欄位反正規化轉成一個欄位增加處理的效能．</p>
+
+<p>students.json</p>
 
 <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="s2">"name"</span><span class="p">:</span><span class="s2">"Michael"</span><span class="p">,</span><span class="w"> </span><span class="s2">"age"</span><span class="p">:</span><span class="mi">25</span><span class="p">,</span><span class="s2">"myScore"</span><span class="p">:[{</span><span class="s2">"score1"</span><span class="p">:</span><span class="mi">19</span><span class="p">,</span><span class="s2">"score2"</span><span class="p">:</span><span class="mi">23</span><span class="p">},{</span><span class="s2">"score1"</span><span class="p">:</span><span class="mi">58</span><span class="p">,</span><span class="s2">"score2"</span><span class="p">:</span><span class="mi">50</span><span class="p">}]}</span><span class="w">
 </span><span class="p">{</span><span class="s2">"name"</span><span class="p">:</span><span class="s2">"Andy"</span><span class="p">,</span><span class="w"> </span><span class="s2">"age"</span><span class="p">:</span><span class="mi">30</span><span class="p">,</span><span class="s2">"myScore"</span><span class="p">:[{</span><span class="s2">"score1"</span><span class="p">:</span><span class="mi">29</span><span class="p">,</span><span class="s2">"score2"</span><span class="p">:</span><span class="mi">33</span><span class="p">},{</span><span class="s2">"score1"</span><span class="p">:</span><span class="mi">38</span><span class="p">,</span><span class="s2">"score2"</span><span class="p">:</span><span class="mi">52</span><span class="p">,</span><span class="s2">"score3"</span><span class="p">:</span><span class="mi">60</span><span class="p">},{</span><span class="s2">"score1"</span><span class="p">:</span><span class="mi">88</span><span class="p">,</span><span class="s2">"score2"</span><span class="p">:</span><span class="mi">71</span><span class="p">}]}</span><span class="w">
 </span><span class="p">{</span><span class="s2">"name"</span><span class="p">:</span><span class="s2">"Justin"</span><span class="p">,</span><span class="w"> </span><span class="s2">"age"</span><span class="p">:</span><span class="mi">19</span><span class="p">,</span><span class="s2">"myScore"</span><span class="p">:[{</span><span class="s2">"score1"</span><span class="p">:</span><span class="mi">39</span><span class="p">,</span><span class="s2">"score2"</span><span class="p">:</span><span class="mi">43</span><span class="p">},{</span><span class="s2">"score1"</span><span class="p">:</span><span class="mi">28</span><span class="p">,</span><span class="s2">"score2"</span><span class="p">:</span><span class="mi">53</span><span class="p">}]}</span><span class="w">
 </span></code></pre></div></div>
 
-<p>先讀取 json file</p>
+<p>先讀取 json file，可以看到 myScore 是一個 array 裡面存放多個型態是 struct 的 element．</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="k">val</span> <span class="n">df1</span> <span class="k">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">json</span><span class="o">(</span><span class="s">"/temp/students.json"</span><span class="o">)</span>
 <span class="n">df1</span><span class="k">:</span> <span class="kt">org.apache.spark.sql.DataFrame</span> <span class="o">=</span> <span class="o">[</span><span class="kt">age:</span> <span class="kt">bigint</span>, <span class="kt">myScore:</span> <span class="kt">array&lt;struct&lt;score1:bigint</span>,<span class="kt">score2:bigint</span>,<span class="kt">score3:bigint&gt;&gt;</span> <span class="kt">...</span> <span class="err">1</span> <span class="kt">more</span> <span class="kt">field</span><span class="o">]</span>
@@ -189,6 +193,117 @@
 <span class="o">|</span> <span class="nc">Justin</span><span class="o">|</span> <span class="mi">19</span><span class="o">|</span>   <span class="o">[</span><span class="err">39</span>, <span class="err">43</span>,<span class="o">]|</span>   <span class="o">[</span><span class="err">39</span>, <span class="err">43</span>,<span class="o">]|</span>
 <span class="o">|</span> <span class="nc">Justin</span><span class="o">|</span> <span class="mi">19</span><span class="o">|</span>   <span class="o">[</span><span class="err">28</span>, <span class="err">53</span>,<span class="o">]|</span>   <span class="o">[</span><span class="err">28</span>, <span class="err">53</span>,<span class="o">]|</span>
 <span class="o">+-------+---+------------+------------+</span>
+</code></pre></div></div>
+
+<p>如果想要再把 score1、score2、score3 反正規劃成一個 score 欄位可以透過 array 這個 function，先把這三個欄位合併成一個 scores 欄位然後再透過 explode 展開一次即可．</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="n">df3</span><span class="o">.</span><span class="n">withColumn</span><span class="o">(</span><span class="s">"scores"</span><span class="o">,</span> <span class="n">array</span><span class="o">(</span><span class="n">df3</span><span class="o">(</span><span class="s">"score1"</span><span class="o">),</span><span class="n">df3</span><span class="o">(</span><span class="s">"score2"</span><span class="o">),</span><span class="n">df3</span><span class="o">(</span><span class="s">"score3"</span><span class="o">))).</span><span class="n">select</span><span class="o">(</span><span class="n">$</span><span class="s">"name"</span><span class="o">,</span><span class="n">$</span><span class="s">"age"</span><span class="o">,</span><span class="n">explode</span><span class="o">(</span><span class="n">$</span><span class="s">"scores"</span><span class="o">)).</span><span class="n">show</span><span class="o">()</span>
+<span class="o">+-------+---+----+</span>
+<span class="o">|</span>   <span class="n">name</span><span class="o">|</span><span class="n">age</span><span class="o">|</span> <span class="n">col</span><span class="o">|</span>
+<span class="o">+-------+---+----+</span>
+<span class="o">|</span><span class="nc">Michael</span><span class="o">|</span> <span class="mi">25</span><span class="o">|</span>  <span class="mi">19</span><span class="o">|</span>
+<span class="o">|</span><span class="nc">Michael</span><span class="o">|</span> <span class="mi">25</span><span class="o">|</span>  <span class="mi">23</span><span class="o">|</span>
+<span class="o">|</span><span class="nc">Michael</span><span class="o">|</span> <span class="mi">25</span><span class="o">|</span><span class="kc">null</span><span class="o">|</span>
+<span class="o">|</span><span class="nc">Michael</span><span class="o">|</span> <span class="mi">25</span><span class="o">|</span>  <span class="mi">58</span><span class="o">|</span>
+<span class="o">|</span><span class="nc">Michael</span><span class="o">|</span> <span class="mi">25</span><span class="o">|</span>  <span class="mi">50</span><span class="o">|</span>
+<span class="o">|</span><span class="nc">Michael</span><span class="o">|</span> <span class="mi">25</span><span class="o">|</span><span class="kc">null</span><span class="o">|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>  <span class="mi">29</span><span class="o">|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>  <span class="mi">33</span><span class="o">|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span><span class="kc">null</span><span class="o">|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>  <span class="mi">38</span><span class="o">|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>  <span class="mi">52</span><span class="o">|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>  <span class="mi">60</span><span class="o">|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>  <span class="mi">88</span><span class="o">|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>  <span class="mi">71</span><span class="o">|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span><span class="kc">null</span><span class="o">|</span>
+<span class="o">|</span> <span class="nc">Justin</span><span class="o">|</span> <span class="mi">19</span><span class="o">|</span>  <span class="mi">39</span><span class="o">|</span>
+<span class="o">|</span> <span class="nc">Justin</span><span class="o">|</span> <span class="mi">19</span><span class="o">|</span>  <span class="mi">43</span><span class="o">|</span>
+<span class="o">|</span> <span class="nc">Justin</span><span class="o">|</span> <span class="mi">19</span><span class="o">|</span><span class="kc">null</span><span class="o">|</span>
+<span class="o">|</span> <span class="nc">Justin</span><span class="o">|</span> <span class="mi">19</span><span class="o">|</span>  <span class="mi">28</span><span class="o">|</span>
+<span class="o">|</span> <span class="nc">Justin</span><span class="o">|</span> <span class="mi">19</span><span class="o">|</span>  <span class="mi">53</span><span class="o">|</span>
+<span class="o">+-------+---+----+</span>
+<span class="n">only</span> <span class="n">showing</span> <span class="n">top</span> <span class="mi">20</span> <span class="n">rows</span>
+</code></pre></div></div>
+
+<h2 id="explode_outer">explode_outer</h2>
+
+<p>如果在 json file 裡有人是沒有 score 的．</p>
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="s2">"name"</span><span class="p">:</span><span class="s2">"Ray"</span><span class="p">,</span><span class="w"> </span><span class="s2">"age"</span><span class="p">:</span><span class="mi">28</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+<p>可以看到 Ray 透過 explode 就消失了．因為 explode 會忽略掉 null 的資料．</p>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="k">val</span> <span class="n">df2</span> <span class="k">=</span> <span class="n">df1</span><span class="o">.</span><span class="n">select</span><span class="o">(</span><span class="n">df1</span><span class="o">(</span><span class="s">"name"</span><span class="o">),</span><span class="n">df1</span><span class="o">(</span><span class="s">"age"</span><span class="o">),</span><span class="n">explode</span><span class="o">(</span><span class="n">df1</span><span class="o">(</span><span class="s">"myScore"</span><span class="o">))).</span><span class="n">toDF</span><span class="o">(</span><span class="s">"name"</span><span class="o">,</span><span class="s">"age"</span><span class="o">,</span><span class="s">"myScore"</span><span class="o">)</span>
+<span class="n">df2</span><span class="k">:</span> <span class="kt">org.apache.spark.sql.DataFrame</span> <span class="o">=</span> <span class="o">[</span><span class="kt">name:</span> <span class="kt">string</span>, <span class="kt">age:</span> <span class="kt">bigint</span> <span class="kt">...</span> <span class="err">1</span> <span class="kt">more</span> <span class="kt">field</span><span class="o">]</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="n">df2</span><span class="o">.</span><span class="n">show</span><span class="o">()</span>
+<span class="o">+-------+---+------------+</span>
+<span class="o">|</span>   <span class="n">name</span><span class="o">|</span><span class="n">age</span><span class="o">|</span>     <span class="n">myScore</span><span class="o">|</span>
+<span class="o">+-------+---+------------+</span>
+<span class="o">|</span><span class="nc">Michael</span><span class="o">|</span> <span class="mi">25</span><span class="o">|</span>   <span class="o">[</span><span class="err">19</span>, <span class="err">23</span>,<span class="o">]|</span>
+<span class="o">|</span><span class="nc">Michael</span><span class="o">|</span> <span class="mi">25</span><span class="o">|</span>   <span class="o">[</span><span class="err">58</span>, <span class="err">50</span>,<span class="o">]|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>   <span class="o">[</span><span class="err">29</span>, <span class="err">33</span>,<span class="o">]|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|[</span><span class="err">38</span>, <span class="err">52</span>, <span class="err">60</span><span class="o">]|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>   <span class="o">[</span><span class="err">88</span>, <span class="err">71</span>,<span class="o">]|</span>
+<span class="o">|</span> <span class="nc">Justin</span><span class="o">|</span> <span class="mi">19</span><span class="o">|</span>   <span class="o">[</span><span class="err">39</span>, <span class="err">43</span>,<span class="o">]|</span>
+<span class="o">|</span> <span class="nc">Justin</span><span class="o">|</span> <span class="mi">19</span><span class="o">|</span>   <span class="o">[</span><span class="err">28</span>, <span class="err">53</span>,<span class="o">]|</span>
+<span class="o">+-------+---+------------+</span>
+</code></pre></div></div>
+<p>所以當如果要 explode 的欄位是 null 時該筆資料還是要保留的話就要使用 explode_outer，會保留全部的資料．</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="k">val</span> <span class="n">df2</span> <span class="k">=</span> <span class="n">df1</span><span class="o">.</span><span class="n">select</span><span class="o">(</span><span class="n">df1</span><span class="o">(</span><span class="s">"name"</span><span class="o">),</span><span class="n">df1</span><span class="o">(</span><span class="s">"age"</span><span class="o">),</span><span class="n">explode_outer</span><span class="o">(</span><span class="n">df1</span><span class="o">(</span><span class="s">"myScore"</span><span class="o">))).</span><span class="n">toDF</span><span class="o">(</span><span class="s">"name"</span><span class="o">,</span><span class="s">"age"</span><span class="o">,</span><span class="s">"myScore"</span><span class="o">)</span>
+<span class="n">df2</span><span class="k">:</span> <span class="kt">org.apache.spark.sql.DataFrame</span> <span class="o">=</span> <span class="o">[</span><span class="kt">name:</span> <span class="kt">string</span>, <span class="kt">age:</span> <span class="kt">bigint</span> <span class="kt">...</span> <span class="err">1</span> <span class="kt">more</span> <span class="kt">field</span><span class="o">]</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="n">df2</span><span class="o">.</span><span class="n">show</span><span class="o">()</span>
+<span class="o">+-------+---+------------+</span>
+<span class="o">|</span>   <span class="n">name</span><span class="o">|</span><span class="n">age</span><span class="o">|</span>     <span class="n">myScore</span><span class="o">|</span>
+<span class="o">+-------+---+------------+</span>
+<span class="o">|</span><span class="nc">Michael</span><span class="o">|</span> <span class="mi">25</span><span class="o">|</span>   <span class="o">[</span><span class="err">19</span>, <span class="err">23</span>,<span class="o">]|</span>
+<span class="o">|</span><span class="nc">Michael</span><span class="o">|</span> <span class="mi">25</span><span class="o">|</span>   <span class="o">[</span><span class="err">58</span>, <span class="err">50</span>,<span class="o">]|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>   <span class="o">[</span><span class="err">29</span>, <span class="err">33</span>,<span class="o">]|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|[</span><span class="err">38</span>, <span class="err">52</span>, <span class="err">60</span><span class="o">]|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>   <span class="o">[</span><span class="err">88</span>, <span class="err">71</span>,<span class="o">]|</span>
+<span class="o">|</span> <span class="nc">Justin</span><span class="o">|</span> <span class="mi">19</span><span class="o">|</span>   <span class="o">[</span><span class="err">39</span>, <span class="err">43</span>,<span class="o">]|</span>
+<span class="o">|</span> <span class="nc">Justin</span><span class="o">|</span> <span class="mi">19</span><span class="o">|</span>   <span class="o">[</span><span class="err">28</span>, <span class="err">53</span>,<span class="o">]|</span>
+<span class="o">|</span>    <span class="nc">Ray</span><span class="o">|</span> <span class="mi">28</span><span class="o">|</span>        <span class="kc">null</span><span class="o">|</span>
+<span class="o">+-------+---+------------+</span>
+</code></pre></div></div>
+<h2 id="posexplode--posexplode_outer">posexplode &amp; posexplode_outer</h2>
+<h4 id="posexplode">posexplode</h4>
+<p>透過 posexplode 或 posexplode_outer 可以把 myScore 原本在 array 的位置(index) 也帶出一個欄位 pos．</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="k">val</span> <span class="n">df2</span> <span class="k">=</span> <span class="n">df1</span><span class="o">.</span><span class="n">select</span><span class="o">(</span><span class="n">df1</span><span class="o">(</span><span class="s">"name"</span><span class="o">),</span><span class="n">df1</span><span class="o">(</span><span class="s">"age"</span><span class="o">),</span><span class="n">posexplode</span><span class="o">(</span><span class="n">df1</span><span class="o">(</span><span class="s">"myScore"</span><span class="o">))).</span><span class="n">toDF</span><span class="o">(</span><span class="s">"name"</span><span class="o">,</span><span class="s">"age"</span><span class="o">,</span><span class="s">"pos"</span><span class="o">,</span><span class="s">"myScore"</span><span class="o">)</span>
+<span class="n">df2</span><span class="k">:</span> <span class="kt">org.apache.spark.sql.DataFrame</span> <span class="o">=</span> <span class="o">[</span><span class="kt">name:</span> <span class="kt">string</span>, <span class="kt">age:</span> <span class="kt">bigint</span> <span class="kt">...</span> <span class="err">2</span> <span class="kt">more</span> <span class="kt">fields</span><span class="o">]</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="n">df2</span><span class="o">.</span><span class="n">show</span><span class="o">()</span>
+<span class="o">+-------+---+---+------------+</span>
+<span class="o">|</span>   <span class="n">name</span><span class="o">|</span><span class="n">age</span><span class="o">|</span><span class="n">pos</span><span class="o">|</span>     <span class="n">myScore</span><span class="o">|</span>
+<span class="o">+-------+---+---+------------+</span>
+<span class="o">|</span><span class="nc">Michael</span><span class="o">|</span> <span class="mi">25</span><span class="o">|</span>  <span class="mi">0</span><span class="o">|</span>   <span class="o">[</span><span class="err">19</span>, <span class="err">23</span>,<span class="o">]|</span>
+<span class="o">|</span><span class="nc">Michael</span><span class="o">|</span> <span class="mi">25</span><span class="o">|</span>  <span class="mi">1</span><span class="o">|</span>   <span class="o">[</span><span class="err">58</span>, <span class="err">50</span>,<span class="o">]|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>  <span class="mi">0</span><span class="o">|</span>   <span class="o">[</span><span class="err">29</span>, <span class="err">33</span>,<span class="o">]|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>  <span class="mi">1</span><span class="o">|[</span><span class="err">38</span>, <span class="err">52</span>, <span class="err">60</span><span class="o">]|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>  <span class="mi">2</span><span class="o">|</span>   <span class="o">[</span><span class="err">88</span>, <span class="err">71</span>,<span class="o">]|</span>
+<span class="o">|</span> <span class="nc">Justin</span><span class="o">|</span> <span class="mi">19</span><span class="o">|</span>  <span class="mi">0</span><span class="o">|</span>   <span class="o">[</span><span class="err">39</span>, <span class="err">43</span>,<span class="o">]|</span>
+<span class="o">|</span> <span class="nc">Justin</span><span class="o">|</span> <span class="mi">19</span><span class="o">|</span>  <span class="mi">1</span><span class="o">|</span>   <span class="o">[</span><span class="err">28</span>, <span class="err">53</span>,<span class="o">]|</span>
+<span class="o">+-------+---+---+------------+</span>
+</code></pre></div></div>
+<h4 id="posexplode_outer">posexplode_outer</h4>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">scala</span><span class="o">&gt;</span> <span class="k">val</span> <span class="n">df2</span> <span class="k">=</span> <span class="n">df1</span><span class="o">.</span><span class="n">select</span><span class="o">(</span><span class="n">df1</span><span class="o">(</span><span class="s">"name"</span><span class="o">),</span><span class="n">df1</span><span class="o">(</span><span class="s">"age"</span><span class="o">),</span><span class="n">posexplode_outer</span><span class="o">(</span><span class="n">df1</span><span class="o">(</span><span class="s">"myScore"</span><span class="o">))).</span><span class="n">toDF</span><span class="o">(</span><span class="s">"name"</span><span class="o">,</span><span class="s">"age"</span><span class="o">,</span><span class="s">"pos"</span><span class="o">,</span><span class="s">"myScore"</span><span class="o">)</span>
+<span class="n">df2</span><span class="k">:</span> <span class="kt">org.apache.spark.sql.DataFrame</span> <span class="o">=</span> <span class="o">[</span><span class="kt">name:</span> <span class="kt">string</span>, <span class="kt">age:</span> <span class="kt">bigint</span> <span class="kt">...</span> <span class="err">2</span> <span class="kt">more</span> <span class="kt">fields</span><span class="o">]</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="n">df2</span><span class="o">.</span><span class="n">show</span><span class="o">()</span>
+<span class="o">+-------+---+----+------------+</span>
+<span class="o">|</span>   <span class="n">name</span><span class="o">|</span><span class="n">age</span><span class="o">|</span> <span class="n">pos</span><span class="o">|</span>     <span class="n">myScore</span><span class="o">|</span>
+<span class="o">+-------+---+----+------------+</span>
+<span class="o">|</span><span class="nc">Michael</span><span class="o">|</span> <span class="mi">25</span><span class="o">|</span>   <span class="mi">0</span><span class="o">|</span>   <span class="o">[</span><span class="err">19</span>, <span class="err">23</span>,<span class="o">]|</span>
+<span class="o">|</span><span class="nc">Michael</span><span class="o">|</span> <span class="mi">25</span><span class="o">|</span>   <span class="mi">1</span><span class="o">|</span>   <span class="o">[</span><span class="err">58</span>, <span class="err">50</span>,<span class="o">]|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>   <span class="mi">0</span><span class="o">|</span>   <span class="o">[</span><span class="err">29</span>, <span class="err">33</span>,<span class="o">]|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>   <span class="mi">1</span><span class="o">|[</span><span class="err">38</span>, <span class="err">52</span>, <span class="err">60</span><span class="o">]|</span>
+<span class="o">|</span>   <span class="nc">Andy</span><span class="o">|</span> <span class="mi">30</span><span class="o">|</span>   <span class="mi">2</span><span class="o">|</span>   <span class="o">[</span><span class="err">88</span>, <span class="err">71</span>,<span class="o">]|</span>
+<span class="o">|</span> <span class="nc">Justin</span><span class="o">|</span> <span class="mi">19</span><span class="o">|</span>   <span class="mi">0</span><span class="o">|</span>   <span class="o">[</span><span class="err">39</span>, <span class="err">43</span>,<span class="o">]|</span>
+<span class="o">|</span> <span class="nc">Justin</span><span class="o">|</span> <span class="mi">19</span><span class="o">|</span>   <span class="mi">1</span><span class="o">|</span>   <span class="o">[</span><span class="err">28</span>, <span class="err">53</span>,<span class="o">]|</span>
+<span class="o">|</span>    <span class="nc">Ray</span><span class="o">|</span> <span class="mi">28</span><span class="o">|</span><span class="kc">null</span><span class="o">|</span>        <span class="kc">null</span><span class="o">|</span>
+<span class="o">+-------+---+----+------------+</span>
 </code></pre></div></div>
 
 

@@ -4,6 +4,7 @@ comments: false
 categories: spark
 ---
 
+## explode
 
 當在處理 json、parquet、Avro 或 xml 時常會有一些資料類型是 arrays、lists 或 maps 之類的，這時候可以透過 explode 將這些 collection 欄位反正規化轉成一個欄位增加處理的效能．
 
@@ -137,6 +138,94 @@ scala> df3.withColumn("scores", array(df3("score1"),df3("score2"),df3("score3"))
 +-------+---+----+
 only showing top 20 rows
 ```
+
+## explode_outer
+
+如果在 json file 裡有人是沒有 score 的．
+```json
+{"name":"Ray", "age":28}
+```
+可以看到 Ray 透過 explode 就消失了．因為 explode 會忽略掉 null 的資料．
+```scala
+scala> val df2 = df1.select(df1("name"),df1("age"),explode(df1("myScore"))).toDF("name","age","myScore")
+df2: org.apache.spark.sql.DataFrame = [name: string, age: bigint ... 1 more field]
+
+scala> df2.show()
++-------+---+------------+
+|   name|age|     myScore|
++-------+---+------------+
+|Michael| 25|   [19, 23,]|
+|Michael| 25|   [58, 50,]|
+|   Andy| 30|   [29, 33,]|
+|   Andy| 30|[38, 52, 60]|
+|   Andy| 30|   [88, 71,]|
+| Justin| 19|   [39, 43,]|
+| Justin| 19|   [28, 53,]|
++-------+---+------------+
+```
+所以當如果要 explode 的欄位是 null 時該筆資料還是要保留的話就要使用 explode_outer，會保留全部的資料．
+
+```scala
+scala> val df2 = df1.select(df1("name"),df1("age"),explode_outer(df1("myScore"))).toDF("name","age","myScore")
+df2: org.apache.spark.sql.DataFrame = [name: string, age: bigint ... 1 more field]
+
+scala> df2.show()
++-------+---+------------+
+|   name|age|     myScore|
++-------+---+------------+
+|Michael| 25|   [19, 23,]|
+|Michael| 25|   [58, 50,]|
+|   Andy| 30|   [29, 33,]|
+|   Andy| 30|[38, 52, 60]|
+|   Andy| 30|   [88, 71,]|
+| Justin| 19|   [39, 43,]|
+| Justin| 19|   [28, 53,]|
+|    Ray| 28|        null|
++-------+---+------------+
+```
+## posexplode & posexplode_outer
+#### posexplode
+透過 posexplode 或 posexplode_outer 可以把 myScore 原本在 array 的位置(index) 也帶出一個欄位 pos．
+
+```scala
+scala> val df2 = df1.select(df1("name"),df1("age"),posexplode(df1("myScore"))).toDF("name","age","pos","myScore")
+df2: org.apache.spark.sql.DataFrame = [name: string, age: bigint ... 2 more fields]
+
+scala> df2.show()
++-------+---+---+------------+
+|   name|age|pos|     myScore|
++-------+---+---+------------+
+|Michael| 25|  0|   [19, 23,]|
+|Michael| 25|  1|   [58, 50,]|
+|   Andy| 30|  0|   [29, 33,]|
+|   Andy| 30|  1|[38, 52, 60]|
+|   Andy| 30|  2|   [88, 71,]|
+| Justin| 19|  0|   [39, 43,]|
+| Justin| 19|  1|   [28, 53,]|
++-------+---+---+------------+
+```
+#### posexplode_outer
+
+```scala
+scala> val df2 = df1.select(df1("name"),df1("age"),posexplode_outer(df1("myScore"))).toDF("name","age","pos","myScore")
+df2: org.apache.spark.sql.DataFrame = [name: string, age: bigint ... 2 more fields]
+
+scala> df2.show()
++-------+---+----+------------+
+|   name|age| pos|     myScore|
++-------+---+----+------------+
+|Michael| 25|   0|   [19, 23,]|
+|Michael| 25|   1|   [58, 50,]|
+|   Andy| 30|   0|   [29, 33,]|
+|   Andy| 30|   1|[38, 52, 60]|
+|   Andy| 30|   2|   [88, 71,]|
+| Justin| 19|   0|   [39, 43,]|
+| Justin| 19|   1|   [28, 53,]|
+|    Ray| 28|null|        null|
++-------+---+----+------------+
+```
+
+
 
 
 
